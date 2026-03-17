@@ -1,0 +1,34 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+# Rider / IntelliJ
+/.idea/
+/.idea.BZCC-R.iml
+/contentModel.xml
+/modules.xml
+/projectSettingsUpdater.xml
+/queries/
+/dataSources/
+/dataSources.local.xml
+/httpRequests/
+
+# Build output directories
+Debug/
+Release/
+x64/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio intermediate files
+*.obj
+*.o
+*.ilk
+*.ipdb
+*.iobj
+*.idb
+*.pdb
+*.exp
+*.lib
+*.dll.recipe
+*.tlog
+*.lastbuildstate
