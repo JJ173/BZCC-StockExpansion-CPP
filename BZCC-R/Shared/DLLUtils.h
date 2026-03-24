@@ -4,7 +4,7 @@
 
 namespace dll_utils
 {
-	bool is_recycler(Handle h);
+	bool is_recycler(const Handle handle);
 	
 	int count_allied_players(int team);
 	

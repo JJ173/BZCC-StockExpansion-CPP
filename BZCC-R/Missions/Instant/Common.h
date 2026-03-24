@@ -11,6 +11,7 @@ class Common : public DLLBase
 
     int first_int_;
     int mission_time_;
+    int elapsed_game_time_;
     int player_team_;
     int strat_team_;
     int comp_team_;
@@ -18,6 +19,9 @@ class Common : public DLLBase
     int intro_state_;
     int intro_delay_;
     int player_count_;
+    int vsr_taunt_easter_egg_time_;
+    int cpu_scrap_amount_;
+    int cpu_scrap_delay_;
     int last_int_;
         
     char player_race_char_;
@@ -29,8 +33,13 @@ class Common : public DLLBase
     bool start_done_;
     bool intro_done_;
     bool game_over_;
+    bool is_team_setup[MAX_TEAMS];
     bool is_mpi_;
     bool intro_enemies_spawned_;
+    bool can_respawn_;
+    bool intro_cutscene_enabled_;
+    bool wildlife_enabled_;
+    bool snipeable_enemies_;
     bool last_bool_;
     
     Handle first_handle_;
@@ -71,10 +80,10 @@ public:
     ~Common() override;
     
     // Initial setup of the mission.
-    void setup();
+    void setup_mission();
     
     // Runs each frame.
-    void execute();
+    void Execute() override;
 private:
     // Handle building any starting vehicles when the game begins.
     Handle build_starting_vehicle(int team, char race, const std::string& first_odf, const std::string& second_odf, const Vector& spawn_pos) const;
@@ -99,6 +108,9 @@ private:
     
     // Handle building the player Recycler when the game begins.
     void build_player_recycler(const Vector& position);
+    
+    // Set up any players in the game.
+    Handle setup_player(int team);
     
     // Clean any player spawns that are lingering at the start.
     void clean_spawns() const;

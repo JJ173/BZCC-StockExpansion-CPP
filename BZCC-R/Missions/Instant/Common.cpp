@@ -3,6 +3,7 @@
 #include "../../Shared/DLLUtils.h"
 #include "../../Shared/TRNAllies.h"
 #include "../../Utilities/Helpers.h"
+#include "../../Shared/GameConfig.h"
 
 // ==================================================
 // Construction / Initialization
@@ -239,26 +240,26 @@ void Common::check_intro_enemies_killed()
 }
 
 // ==================================================
-// Player Recycler
+// Player Spawn / Build Helpers
 // ==================================================
 void Common::build_player_recycler(const Vector& position)
 {
-    std::string customHumanRecycler;
+    std::string custom_human_recycler;
 
     if (is_mpi_)
     {
-        customHumanRecycler = dll_utils::get_checked_network_svar(5, NETLIST_IAHumanRecyList);
+        custom_human_recycler = dll_utils::get_checked_network_svar(5, NETLIST_IAHumanRecyList);
     }
     else
     {
         char buffer[64]{};
         IFace_GetString("options.instant.string1", buffer, sizeof(buffer));
-        customHumanRecycler = buffer;
+        custom_human_recycler = buffer;
     }
 
-    if (customHumanRecycler.empty())
+    if (custom_human_recycler.empty())
     {
-        recycler_ = build_starting_vehicle(strat_team_, player_race_char_, customHumanRecycler, "*vrecy", position);
+        recycler_ = build_starting_vehicle(strat_team_, player_race_char_, custom_human_recycler, "*vrecy", position);
     }
     else
     {
@@ -266,6 +267,20 @@ void Common::build_player_recycler(const Vector& position)
     }
 
     SetScrap(strat_team_, 40);
+}
+
+Handle Common::setup_player(const int team)
+{
+    if (team < 0 || team >= MAX_TEAMS)
+    {
+        return 0;
+    }
+    
+    player_count_++;
+    IFace_SetInteger(GameConfig::MPI_PLAYER_COUNT, player_count_);
+
+    const std::string player_count_message = "[IA 2.0]: Registering New Player Count: " + std::to_string(player_count_);
+    PrintConsoleMessage(player_count_message.c_str());
 }
 
 // ==================================================
@@ -286,7 +301,7 @@ void Common::clean_spawns() const
 // ==================================================
 // Main Logic
 // ==================================================
-void Common::setup()
+void Common::setup_mission()
 {
     // This might be cool as an option in the shell for ease.
     SetAutoGroupUnits(false);
@@ -358,10 +373,51 @@ void Common::setup()
     comp_team_ = 6;
     strat_team_ = 1;
     map_name_ = GetMapTRNFilename();
+    
+    // Check to see if we're in an MPI session and adjust variables.
+    if (is_mpi_)
+    {
+        intro_cutscene_enabled_ = IFace_GetInteger("network.session.ivar126") > 0;
+        wildlife_enabled_ = IFace_GetInteger("network.session.ivar125") > 0;
+        snipeable_enemies_ = IFace_GetInteger("network.session.ivar123") > 0;
+        difficulty_ = IFace_GetInteger("network.session.ivar127");
+        cpu_scrap_delay_ ((4 - difficulty_) * 2) / CountPlayers();
+    }
+    else
+    {
+        intro_cutscene_enabled_ = IFace_GetInteger("options.instant.introScene") > 0;
+        wildlife_enabled_ = IFace_GetInteger("options.instant.wildlife") > 0;
+        difficulty_ = IFace_GetInteger("options.instant.difficulty");
+        cpu_scrap_delay_ ((4 - difficulty_) * 2);
+    }
+    
+    vsr_taunt_easter_egg_time_ = mission_time_ + SecondsToTurns(600.0f);
+    cpu_scrap_amount_ = difficulty_;
+
+    Handle player_entry_h = GetPlayerHandle(1);
+    if (player_entry_h != 0)
+    {
+        RemoveObject(player_entry_h);
+    }
+    
+    if (ImServer() || !is_mpi_)
+    {
+        elapsed_game_time_ = 0;
+    }
+    
+    int local_team_num_ = GetLocalPlayerTeamNumber();
+    player_entry_h_ = 
+    
+    start_done_ = true;
 }
 
-void Common::execute()
+void Common::Execute()
 {
+    if (!start_done_)
+    {
+        setup_mission();
+    }
+    
     // Works out the game time for us.
     mission_time_++;
 }
