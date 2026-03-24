@@ -15,6 +15,7 @@
     <ClInclude Include="Missions\Instant\InstantR.h" />
     <ClInclude Include="Missions\Instant\MPInstant.h" />
     <ClInclude Include="Missions\ISDF17\ISDF17.h" />
+    <ClInclude Include="Multiplayer\Cooperative.h" />
     <ClInclude Include="Shared\DLLUtils.h" />
     <ClInclude Include="Shared\SPMission.h" />
     <ClInclude Include="Shared\Taunts.h" />
@@ -26,6 +27,7 @@
     <ClCompile Include="Missions\Instant\InstantR.cpp" />
     <ClCompile Include="Missions\Instant\MPInstant.cpp" />
     <ClCompile Include="Missions\ISDF17\ISDF17.cpp" />
+    <ClCompile Include="Multiplayer\Cooperative.cpp" />
     <ClCompile Include="Shared\DllBase.cpp" />
     <ClCompile Include="Shared\DLLUtils.cpp" />
     <ClCompile Include="Shared\GameConfig.h" />

@@ -252,7 +252,7 @@ void Common::build_player_recycler(const Vector& position)
     }
     else
     {
-        char buffer[64]{};
+        char buffer[64] = { 0 };
         IFace_GetString("options.instant.string1", buffer, sizeof(buffer));
         custom_human_recycler = buffer;
     }

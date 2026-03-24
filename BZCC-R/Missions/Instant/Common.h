@@ -59,6 +59,36 @@ class Common : public DLLBase
     Handle scion_intro_turret_2_;
     Handle last_handle_;
 
+    // Handle building any starting vehicles when the game begins.
+    Handle build_starting_vehicle(int team, char race, const std::string& first_odf, const std::string& second_odf, const Vector& spawn_pos) const;
+
+    // Remove the ISDF intro units.
+    void remove_isdf_intro_units() const;
+
+    // Remove the Scion intro units.
+    void remove_scion_intro_units() const;
+
+    // Disables the intro sequence.
+    void disable_intro();
+
+    // Handles checking the "Game Over" sequence.
+    void game_conditions();
+
+    // Handles calling the carrier manager to build carriers.
+    void build_carriers();
+
+    // If the intro is enabled, check to see if the intro enemies are dead.
+    void check_intro_enemies_killed();
+
+    // Handle building the player Recycler when the game begins.
+    void build_player_recycler(const Vector& position);
+
+    // Set up any players in the game.
+    Handle setup_player(int team);
+
+    // Clean any player spawns that are lingering at the start.
+    void clean_spawns() const;
+
 protected:
     bool *b_array_;
     int b_count_;
@@ -84,34 +114,4 @@ public:
     
     // Runs each frame.
     void Execute() override;
-private:
-    // Handle building any starting vehicles when the game begins.
-    Handle build_starting_vehicle(int team, char race, const std::string& first_odf, const std::string& second_odf, const Vector& spawn_pos) const;
-    
-    // Remove the ISDF intro units.
-    void remove_isdf_intro_units() const;
-    
-    // Remove the Scion intro units.
-    void remove_scion_intro_units() const;
-    
-    // Disables the intro sequence.
-    void disable_intro();
-    
-    // Handles checking the "Game Over" sequence.
-    void game_conditions();
-    
-    // Handles calling the carrier manager to build carriers.
-    void build_carriers();
-    
-    // If the intro is enabled, check to see if the intro enemies are dead.
-    void check_intro_enemies_killed();
-    
-    // Handle building the player Recycler when the game begins.
-    void build_player_recycler(const Vector& position);
-    
-    // Set up any players in the game.
-    Handle setup_player(int team);
-    
-    // Clean any player spawns that are lingering at the start.
-    void clean_spawns() const;
 };
