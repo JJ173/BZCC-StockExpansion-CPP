@@ -16,7 +16,7 @@ class Cooperative : public DLLBase
     bool is_team_setup[4];
     bool last_bool_;
 
-    Handle setup_player(int team_);
+    Handle setup_player(int team);
 
 protected:
     bool* b_array_;
@@ -33,5 +33,5 @@ public:
     ~Cooperative();
 
     // Setup
-    void setup_cooperative(const char* mission_name_, const char* player_ship_odf_, const char* player_pilot_odf, bool is_coop_, bool spawn_pilot_only_, float height_offset_);
+    void setup_cooperative(const char* mission_name, const char* player_ship_odf_, const char* player_pilot_odf, bool is_coop, bool spawn_pilot_only, float height_offset);
 };
