@@ -10,6 +10,13 @@ namespace GameConfig
         HARD
     };
     
+    enum SubtitlePanelSize : std::uint8_t
+    {
+        Small,
+        Medium,
+        Large
+    };
+    
     constexpr int MAX_PLAYERS = 4;
     constexpr int DEFAULT_TPS = 20;
     
@@ -34,6 +41,7 @@ namespace GameConfig
     constexpr auto MPI_CPU_TEAM_RACE = "network.session.ivar13";
     
     constexpr auto OPTIONS_AUDIO_MUSIC = "options.audio.music";
+    constexpr auto OPTIONS_PLAY_SUBTITLES = "options.play.subtitles";
     
     constexpr const char* CPU_NAMES[16] = 
     {

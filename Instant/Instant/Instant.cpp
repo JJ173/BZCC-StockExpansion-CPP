@@ -6,6 +6,7 @@
 #include "../../shared/TRNAllies.h"
 #include "../../Utilities/Helpers.h"
 #include "../../Shared/GameConfig.h"
+#include "../../Utilities/Subtitles.h"
 
 // ==================================================
 // Construction / Initialization
@@ -55,15 +56,15 @@ Instant::Instant()
         "mcwing01",
         "pspwn_1"
     };
-    
+
     for (const char* odf : odfs_to_preload)
     {
         PreloadODF(odf);
     }
-    
+
     // Next, run through and preload a list of Audio names.
     // Generate a local list here.
-    static constexpr const char* audio_to_preload[] = 
+    static constexpr const char* audio_to_preload[] =
     {
         "IA_Intro.wav",
         "IA_Pilot_1.wav",
@@ -82,25 +83,25 @@ Instant::Instant()
         "IA_Scion_Tech_4.wav",
         "dropdoor.wav"
     };
-    
+
     for (const char* audio : audio_to_preload)
     {
         PreloadAudioMessage(audio);
     }
-    
+
     // Set up the terrain allies if they apply.
     TRNAllies::SetupTRNAllies(GetMapTRNFilename());
 }
 
 Instant::~Instant()
 {
-
 }
 
 // ==================================================
 // Spawn / Build Helpers
 // ==================================================
-Handle Instant::BuildStartingVehicle(const int team, const char race, const std::string& first_odf, const std::string& second_odf, const Vector& spawn_pos) const
+Handle Instant::BuildStartingVehicle(const int team, const char race, const std::string& first_odf,
+                                     const std::string& second_odf, const Vector& spawn_pos) const
 {
     // Replace the first ODF character with the race character.
     std::string odf = first_odf;
@@ -209,10 +210,10 @@ void Instant::RemoveISDFIntroUnits() const
         char handle_name[64] = {};
         if (sprintf_s(handle_name, sizeof(handle_name), "player_spawn_i_%d", i) < 0)
         {
-            handle_name[0] = '\0'; 
+            handle_name[0] = '\0';
             continue;
         }
-        
+
         // Grab the player spawn handles and remove them during cleanup.
         const Handle player_spawn_handle = GetHandle(handle_name);
 
@@ -234,10 +235,10 @@ void Instant::RemoveScionIntroUnits() const
         char handle_name[64] = {};
         if (sprintf_s(handle_name, sizeof(handle_name), "player_spawn_f_%d", i) < 0)
         {
-            handle_name[0] = '\0'; 
+            handle_name[0] = '\0';
             continue;
         }
-        
+
         // Grab the player spawn handles and remove them during cleanup.
         const Handle player_spawn_handle = GetHandle(handle_name);
 
@@ -265,20 +266,20 @@ void Instant::HandleDropshipRemoval()
     {
         return;
     }
-    
+
     if (!dropship_1_takeoff_)
     {
         const bool turret_1_clear = GetDistance(intro_turret_1_, intro_ship_1_) > 30;
         const bool turret_2_clear = GetDistance(intro_turret_2_, intro_ship_2_) > 30;
-        const bool player_clear = Helpers::IsPlayerWithinDistance(intro_ship_1_, 30, player_count_);
-        
+        const bool player_clear = !Helpers::IsPlayerWithinDistance(intro_ship_1_, 30, player_count_);
+
         if (turret_1_clear && turret_2_clear && player_clear)
         {
             SetAnimation(intro_ship_1_, "takeoff", 1);
-            
+
             const int engine_sound = StartAudio3D("dropleav.wav", intro_ship_1_);
             SetVolume(engine_sound, 0.3f);
-            
+
             dropship_1_takeoff_ = true;
             dropship_1_time_ = mission_time_ + SecondsToTurns(15.0f);
         }
@@ -288,18 +289,18 @@ void Instant::HandleDropshipRemoval()
         RemoveObject(intro_ship_1_);
         dropship_1_removed_ = true;
     }
-    
+
     if (!dropship_2_takeoff_)
     {
-        const bool player_clear = Helpers::IsPlayerWithinDistance(intro_ship_2_, 30, player_count_);
-        
+        const bool player_clear = !Helpers::IsPlayerWithinDistance(intro_ship_2_, 30, player_count_);
+
         if (player_clear)
         {
             SetAnimation(intro_ship_2_, "takeoff", 1);
-            
+
             const int engine_sound = StartAudio3D("dropleav.wav", intro_ship_2_);
             SetVolume(engine_sound, 0.3f);
-            
+
             dropship_2_takeoff_ = true;
             dropship_2_time_ = mission_time_ + SecondsToTurns(15.0f);
         }
@@ -309,18 +310,18 @@ void Instant::HandleDropshipRemoval()
         RemoveObject(intro_ship_2_);
         dropship_2_removed_ = true;
     }
-    
+
     if (!dropship_3_takeoff_)
     {
-        const bool player_clear = Helpers::IsPlayerWithinDistance(intro_ship_3_, 30, player_count_);
-        
+        const bool player_clear = !Helpers::IsPlayerWithinDistance(intro_ship_3_, 30, player_count_);
+
         if (player_clear)
         {
             SetAnimation(intro_ship_3_, "takeoff", 1);
-            
+
             const int engine_sound = StartAudio3D("dropleav.wav", intro_ship_3_);
             SetVolume(engine_sound, 0.3f);
-            
+
             dropship_3_takeoff_ = true;
             dropship_3_time_ = mission_time_ + SecondsToTurns(15.0f);
         }
@@ -329,6 +330,17 @@ void Instant::HandleDropshipRemoval()
     {
         RemoveObject(intro_ship_3_);
         dropship_3_removed_ = true;
+    }
+    
+    if (!dropship_takeoff_dialog_played_ && dropship_1_takeoff_ && dropship_2_takeoff_ && dropship_3_takeoff_)
+    {
+        intro_audio_ = subtitles_.AudioWithSubtitles("IA_Pilot_4.wav", GameConfig::SubtitlePanelSize::Small);
+        dropship_takeoff_dialog_played_ = true;
+    }
+    
+    if (dropship_1_removed_ && dropship_2_removed_ && dropship_3_removed_)
+    {
+        dropship_takeoff_check_ = false;
     }
 }
 
@@ -353,12 +365,12 @@ bool Instant::IntroEnemiesKilled()
             enemy_odf[0] = cpu_race_char_;
 
             // Position that we're building at.
-            char position_path[64];
-            if (sprintf_s(position_path, sizeof(position_path), "intro_attacker_: %d", i) < 0)
+            char position_path[64] = {};
+            if (sprintf_s(position_path, sizeof(position_path), "intro_attacker_%d", i) < 0)
             {
                 position_path[0] = '\0';
             }
-            
+
             // Build the enemy handle.
             const Handle enemy = BuildObject(enemy_odf.c_str(), comp_team_, position_path);
 
@@ -388,7 +400,7 @@ bool Instant::IntroEnemiesKilled()
         intro_delay_ += mission_time_ + SecondsToTurns(3.0f);
         return true;
     }
-    
+
     return false;
 }
 
@@ -449,7 +461,6 @@ void Instant::UpdateISDFIntro()
 
 void Instant::UpdateScionIntro()
 {
-    
 }
 
 void Instant::AdvanceISDFIntroState(const ISDFIntroState next, const float delay_seconds = 0.0f)
@@ -477,7 +488,7 @@ void Instant::BuildPlayerRecycler(const Vector& position)
     }
     else
     {
-        char buffer[64] = { 0 };
+        char buffer[64] = {0};
         IFace_GetString("options.instant.string1", buffer, sizeof(buffer));
         custom_human_recycler = buffer;
     }
@@ -501,21 +512,21 @@ void Instant::BuildPlayerVehicles(const Vector& position, const bool is_intro) c
     {
         return;
     }
-    
+
     const Handle tank1 = BuildStartingVehicle(player_team_, human_race_char_, "*vtank_xm", "*vtank", position);
     const Handle tank2 = BuildStartingVehicle(player_team_, human_race_char_, "*vtank_xm", "*vtank", position);
-            
+
     SetRandomHeadingAngle(tank1);
     SetRandomHeadingAngle(tank2);
     SetBestGroup(tank1);
     SetBestGroup(tank2);
-    
+
     if (is_intro)
     {
         Defend2(tank1, recycler_);
         Defend2(tank2, recycler_);
     }
-    
+
     if (difficulty_ < GameConfig::Difficulty::MEDIUM)
     {
         if (human_race_char_ == GameConfig::FACTION_ISDF)
@@ -530,11 +541,11 @@ void Instant::BuildPlayerVehicles(const Vector& position, const bool is_intro) c
             GiveWeapon(tank2, "garc_c");
             GiveWeapon(tank2, "gabsorb");
         }
-                
+
         const Handle truck = BuildStartingVehicle(player_team_, human_race_char_, "*vserv_xm", "*vserv", position);
         SetRandomHeadingAngle(truck);
         SetBestGroup(truck);
-        
+
         if (is_intro)
         {
             Follow(truck, recycler_);
@@ -548,24 +559,25 @@ Handle Instant::SetupPlayer(const int team)
     {
         return 0;
     }
-    
+
     player_count_++;
     IFace_SetInteger(GameConfig::MPI_PLAYER_COUNT, player_count_);
 
     char player_count_message[64];
-    if (sprintf_s(player_count_message, sizeof(player_count_message), "[IA 2.0]: Registering New Player Count: %d", player_count_) < 0)
+    if (sprintf_s(player_count_message, sizeof(player_count_message), "[IA 2.0]: Registering New Player Count: %d",
+                  player_count_) < 0)
     {
-        player_count_message[0] = '\0';   
-    } 
+        player_count_message[0] = '\0';
+    }
     else
     {
         PrintConsoleMessage(player_count_message);
     }
-    
+
     if (IsTeamplayOn())
     {
         const int cmd_team = GetCommanderTeam(team);
-        
+
         if (!is_team_setup_[cmd_team])
         {
             const char team_race = GetRaceOfTeam(cmd_team);
@@ -577,25 +589,27 @@ Handle Instant::SetupPlayer(const int team)
     const Handle spawner = BuildObject("pspwn_1", 0, "Recycler");
     Vector team_spawn_pos = GetPositionNear(GetPosition(spawner), 25.0f, 25.0f);
     Handle player_h = 0;
-    
+
     if (intro_cutscene_enabled_)
     {
         char spawn_handle_name[64];
-        
-        if (sprintf_s(spawn_handle_name, sizeof(spawn_handle_name), "player_spawn_%c_%d", is_mpi_ ? GetRaceOfTeam(team) : human_race_char_, team) < 0)
+
+        if (sprintf_s(spawn_handle_name, sizeof(spawn_handle_name), "player_spawn_%c_%d",
+                      is_mpi_ ? GetRaceOfTeam(team) : human_race_char_, team) < 0)
         {
             spawn_handle_name[0] = '\0';
-        }        
+        }
         else
         {
             player_h = GetHandle(spawn_handle_name);
         }
     }
-    
+
     if (player_h == 0)
     {
         char player_spawn_handle_log[128];
-        if (sprintf_s(player_spawn_handle_log, sizeof(player_spawn_handle_log), "[IA 2.0]: No pre-placed spawns found for team: %d. Spawning a new ship.", team) < 0)
+        if (sprintf_s(player_spawn_handle_log, sizeof(player_spawn_handle_log),
+                      "[IA 2.0]: No pre-placed spawns found for team: %d. Spawning a new ship.", team) < 0)
         {
             player_spawn_handle_log[0] = '\0';
         }
@@ -606,7 +620,7 @@ Handle Instant::SetupPlayer(const int team)
 
         const float cur_floor = TerrainFindFloor(team_spawn_pos.x, team_spawn_pos.z) + 2.5f;
         team_spawn_pos.y = std::max(team_spawn_pos.y, cur_floor);
-        
+
         if (is_mpi_)
         {
             player_h = BuildObject(GetPlayerODF(team), team, team_spawn_pos);
@@ -618,27 +632,28 @@ Handle Instant::SetupPlayer(const int team)
             {
                 new_player_odf[0] = '\0';
             }
-            
+
             player_h = BuildObject(new_player_odf, team, team_spawn_pos);
         }
-        
+
         SetRandomHeadingAngle(player_h);
     }
-    
+
     team_pos_[3 * team + 0] = team_spawn_pos.x;
     team_pos_[3 * team + 1] = team_spawn_pos.y;
     team_pos_[3 * team + 2] = team_spawn_pos.z;
-    
+
     char player_pilot_odf[64];
-    if (sprintf_s(player_pilot_odf, sizeof(player_pilot_odf), "%cspilo_x", is_mpi_ ? GetRaceOfTeam(team) : human_race_char_) < 0)
+    if (sprintf_s(player_pilot_odf, sizeof(player_pilot_odf), "%cspilo_x",
+                  is_mpi_ ? GetRaceOfTeam(team) : human_race_char_) < 0)
     {
         player_pilot_odf[0] = '\0';
     }
-    
+
     SetPilotClass(player_h, player_pilot_odf);
     AddPilotByHandle(player_h);
     is_team_setup_[team] = true;
-    
+
     return player_h;
 }
 
@@ -653,14 +668,14 @@ void Instant::CleanSpawns() const
         {
             continue;
         }
-        
+
         char spawn_handle_name[64];
         if (sprintf_s(spawn_handle_name, sizeof(spawn_handle_name), "player_spawn_%c_%d", human_race_char_, i) < 0)
         {
             spawn_handle_name[0] = '\0';
             continue;
         }
-        
+
         const Handle spawn_handle = GetHandle(spawn_handle_name);
         RemoveObject(spawn_handle);
     }
@@ -673,10 +688,10 @@ void Instant::SetupMission()
 {
     // This might be cool as an option in the shell for ease.
     SetAutoGroupUnits(false);
-    
+
     // We are a 1.3 DLL. Show bot kill messages.
     WantBotKillMessages();
-    
+
     // Start initializing the variables that we need from the shell.
     is_mpi_ = IsNetworkOn();
     mission_time_ = 0;
@@ -684,7 +699,7 @@ void Instant::SetupMission()
     game_over_ = false;
     comp_team_ = 6;
     strat_team_ = 1;
-    
+
     // Check to see if we're in an MPI session and adjust variables.
     if (is_mpi_)
     {
@@ -706,12 +721,12 @@ void Instant::SetupMission()
         can_respawn_ = IFace_GetInteger(GameConfig::CAN_RESPAWN) > 0;
         cpu_scrap_delay_ = (4 - difficulty_) * 2;
     }
-    
+
     vsr_taunt_easter_egg_time_ = mission_time_ + SecondsToTurns(600.0f);
     cpu_scrap_amount_ = difficulty_;
 
     ClearTeamColors();
-    
+
     if (cpu_race_char_ == human_race_char_)
     {
         if (cpu_race_char_ == GameConfig::FACTION_ISDF)
@@ -723,26 +738,26 @@ void Instant::SetupMission()
             SetTeamColor(comp_team_, 85, 255, 85);
         }
     }
-    
+
     // TODO: Add Wildlife.
-    
+
     // TODO: Create CPU Manager and initialize it here.
-    
+
     intro_ship_1_ = GetHandle("intro_drop_1");
     intro_ship_2_ = GetHandle("intro_drop_2");
     intro_ship_3_ = GetHandle("intro_drop_3");
-    
+
     scion_intro_hangar_ = GetHandle("scion_intro_hangar");
     scion_intro_matriarch_ = GetHandle("intro_matriarch");
     scion_intro_turret_1_ = GetHandle("intro_turret_1_scion");
     scion_intro_turret_2_ = GetHandle("intro_turret_2_scion");
-    
+
     intro_turret_1_ = GetHandle("turret1");
     intro_turret_2_ = GetHandle("turret2");
-    
+
     Stop(intro_turret_1_);
     Stop(intro_turret_2_);
-    
+
     if (!intro_cutscene_enabled_)
     {
         DisableIntro();
@@ -750,51 +765,54 @@ void Instant::SetupMission()
         const Handle recycler_spawn_h = BuildObject("pspwn_1", 0, "Recycler");
         BuildPlayerRecycler(GetPosition(recycler_spawn_h));
         RemoveObject(recycler_spawn_h);
-        
+
         const Vector recycler_spawn_pos = GetPosition(recycler_);
-        BuildStartingVehicle(player_team_, human_race_char_, "*vturr_xm", "*vturr", GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
-        BuildStartingVehicle(player_team_, human_race_char_, "*vturr_xm", "*vturr", GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
+        BuildStartingVehicle(player_team_, human_race_char_, "*vturr_xm", "*vturr",
+                             GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
+        BuildStartingVehicle(player_team_, human_race_char_, "*vturr_xm", "*vturr",
+                             GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
         BuildPlayerVehicles(GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
     }
-    
+
     const Handle player_entry_h = GetPlayerHandle(1);
     if (player_entry_h != 0)
     {
         RemoveObject(player_entry_h);
     }
-    
+
     if (ImServer() || !is_mpi_)
     {
         elapsed_game_time_ = 0;
     }
-    
+
     const int local_team_num = GetLocalPlayerTeamNumber();
     const Handle player_h = SetupPlayer(local_team_num);
     SetAsUser(player_h, local_team_num);
     PrintConsoleMessage("[IA 2.0]: New DLL written by AI_Unit.");
-    
+
     start_done_ = true;
 }
 
 void Instant::Execute()
 {
     mission_time_++;
-    
+    subtitles_.Execute();
+
     if (!start_done_)
     {
         SetupMission();
         return;
     }
-    
+
     if (!intro_done_)
-    {  
+    {
         UpdateIntro();
         HandleDropshipRemoval();
         return;
     }
-    
+
     GameConditions();
-    
+
     // Generate CPU scrap cheat here.
 }
 
@@ -804,23 +822,23 @@ void Instant::Execute()
 void Instant::ISDFCleanup()
 {
     RemoveScionIntroUnits();
-    
+
     if (player_count_ < 2)
     {
         RemoveObject(intro_ship_3_);
         dropship_3_removed_ = true;
         dropship_3_takeoff_ = true;
     }
-    
+
     CleanSpawns();
     SetColorFade(1.0f, 0.5f, RGBA_MAKE(0, 0, 0, 255));
     StartEarthQuake(5.0f);
-    
+
     music_option_value_ = GetVarItemInt(GameConfig::OPTIONS_AUDIO_MUSIC);
     IFace_SetInteger(GameConfig::OPTIONS_AUDIO_MUSIC, 0);
-    
+
     SetAnimation(intro_ship_2_, "deploy", 1);
-    
+
     intro_music_ = StartSoundEffect("IA_Intro.wav");
     intro_delay_ = mission_time_ + SecondsToTurns(4.0f);
     isdf_intro_state_ = ISDFIntroState::PlayLine1;
@@ -833,13 +851,13 @@ void Instant::ISDFIntroLine1()
         SetVolume(intro_music_, intro_music_volume_);
         set_intro_music_volume_ = true;
     }
-    
+
     if (!CanAdvanceIntro())
     {
         return;
     }
-    
-    intro_audio_ = AudioMessage("IA_Pilot_1.wav");
+
+    intro_audio_ = subtitles_.AudioWithSubtitles("IA_Pilot_1.wav", GameConfig::SubtitlePanelSize::Small);
     intro_delay_ = mission_time_ + SecondsToTurns(10.0f);
     isdf_intro_state_ = ISDFIntroState::Touchdown;
 }
@@ -850,7 +868,7 @@ void Instant::ISDFTouchdown()
     {
         return;
     }
-    
+
     UpdateEarthQuake(30.0f);
     intro_delay_ = mission_time_ + SecondsToTurns(0.2f);
     isdf_intro_state_ = ISDFIntroState::PrepareDropship;
@@ -862,7 +880,7 @@ void Instant::ISDFPrepareDropship()
     {
         return;
     }
-    
+
     StopEarthQuake();
     intro_delay_ = mission_time_ + SecondsToTurns(4.0f);
     isdf_intro_state_ = ISDFIntroState::PlayLine2;
@@ -874,8 +892,8 @@ void Instant::ISDFIntroLine2()
     {
         return;
     }
-    
-    intro_audio_ = AudioMessage("IA_Pilot_2.wav");
+
+    intro_audio_ = subtitles_.AudioWithSubtitles("IA_Pilot_2.wav", GameConfig::SubtitlePanelSize::Small);
     intro_delay_ = mission_time_ + SecondsToTurns(6.0f);
     isdf_intro_state_ = ISDFIntroState::DispatchUnits;
 }
@@ -886,9 +904,9 @@ void Instant::ISDFDispatchUnits()
     {
         return;
     }
-    
+
     SetAnimation(intro_ship_1_, "deploy", 1);
-    
+
     if (IsAround(intro_ship_3_))
     {
         SetAnimation(intro_ship_3_, "deploy", 1);
@@ -896,17 +914,15 @@ void Instant::ISDFDispatchUnits()
 
     const Handle recycler_spawn_h = BuildObject("pspwn_1", 0, "Recycler");
     BuildPlayerRecycler(GetPosition(intro_ship_1_));
-    
+
     Matrix pos;
     GetPosition2(recycler_spawn_h, pos);
     SetPosition(recycler_, pos);
     RemoveObject(recycler_spawn_h);
-    
+
     BuildPlayerVehicles(GetPosition(recycler_), true);
-    
+
     Goto(recycler_, "recycler_go", 0);
-    Goto(intro_turret_1_, "turret_1_go", 1);
-    Goto(intro_turret_2_, "turret_2_go", 1);
     
     intro_delay_ = mission_time_ + SecondsToTurns(2.5f);
     isdf_intro_state_ = ISDFIntroState::PlayLine3;
@@ -918,16 +934,18 @@ void Instant::ISDFIntroLine3()
     {
         return;
     }
-    
+
     StartSoundEffect("dropdoor.wav", intro_ship_1_);
     if (IsAround(intro_ship_3_))
     {
-        StartSoundEffect("dropdoor.wav", intro_ship_3_);   
+        StartSoundEffect("dropdoor.wav", intro_ship_3_);
     }
     
+    Goto(intro_turret_1_, "turret_1_go", 1);
+    Goto(intro_turret_2_, "turret_2_go", 1);
+
     dropship_takeoff_check_ = true;
-    intro_audio_ = AudioMessage("IA_Pilot_3.wav");
-    intro_delay_ = mission_time_ + SecondsToTurns(4.0f);
+    intro_audio_ = subtitles_.AudioWithSubtitles("IA_Pilot_3.wav", GameConfig::SubtitlePanelSize::Small);
     isdf_intro_state_ = ISDFIntroState::CheckEnemiesAreDead;
 }
 
@@ -937,7 +955,7 @@ void Instant::ISDFCheckEnemiesAreDead()
     {
         return;
     }
-    
+
     isdf_intro_state_ = ISDFIntroState::SpawnCarriers;
 }
 
@@ -947,15 +965,15 @@ void Instant::ISDFSpawnCarriers()
     {
         return;
     }
-    
+
     SetBestGroup(intro_turret_1_);
     SetBestGroup(intro_turret_2_);
     Defend(intro_turret_1_, 0);
     Defend(intro_turret_2_, 0);
-    
+
     BuildCarriers();
-    
-    intro_audio_ = AudioMessage("IA_Carrier_1.wav");
+
+    intro_audio_ = subtitles_.AudioWithSubtitles("IA_Carrier_1.wav", GameConfig::SubtitlePanelSize::Small);
     isdf_intro_state_ = ISDFIntroState::CarrierLine2;
 }
 
@@ -965,8 +983,8 @@ void Instant::ISDFCarrierLine2()
     {
         return;
     }
-    
-    intro_audio_ = AudioMessage("IA_Carrier_2.wav");
+
+    intro_audio_ = subtitles_.AudioWithSubtitles("IA_Carrier_2.wav", GameConfig::SubtitlePanelSize::Small);
     isdf_intro_state_ = ISDFIntroState::End;
 }
 
@@ -976,15 +994,15 @@ void Instant::ISDFEndIntro()
     {
         return;
     }
-    
+
     intro_music_volume_ -= 0.02f;
     intro_delay_ = mission_time_ + SecondsToTurns(0.3f);
-    
+
     if (intro_music_volume_ <= 0.0f)
     {
         StopAudio(intro_music_);
         IFace_SetInteger(GameConfig::OPTIONS_AUDIO_MUSIC, music_option_value_);
-        intro_done_ = true;   
+        intro_done_ = true;
     }
 }
 

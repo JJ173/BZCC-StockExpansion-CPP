@@ -2,9 +2,12 @@
 
 #include <string>
 #include "../../Shared/DllBase.h"
+#include "../../Utilities/Subtitles.h"
 
 class Instant : public DLLBase
 {
+    Subtitles subtitles_;
+    
     enum class ISDFIntroState : std::uint8_t
     {
         Cleanup,
@@ -80,6 +83,7 @@ class Instant : public DLLBase
     bool wildlife_enabled_;
     bool snipeable_enemies_;
     bool dropship_takeoff_check_;
+    bool dropship_takeoff_dialog_played_;
     bool dropship_1_removed_;
     bool dropship_2_removed_;
     bool dropship_3_removed_;

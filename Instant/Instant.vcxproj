@@ -16,6 +16,7 @@
     <ClCompile Include="..\Shared\Taunts.cpp" />
     <ClCompile Include="..\Shared\TRNAllies.cpp" />
     <ClCompile Include="..\Utilities\Helpers.cpp" />
+    <ClCompile Include="..\Utilities\Subtitles.cpp" />
     <ClCompile Include="Instant\Instant.cpp">
       <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -105,6 +106,7 @@
     <ClInclude Include="..\Shared\Taunts.h" />
     <ClInclude Include="..\Shared\TRNAllies.h" />
     <ClInclude Include="..\Utilities\Helpers.h" />
+    <ClInclude Include="..\Utilities\Subtitles.h" />
     <ClInclude Include="Instant\Instant.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
