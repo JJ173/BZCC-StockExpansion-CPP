@@ -5,9 +5,9 @@ namespace GameConfig
 {
     enum Difficulty : std::uint8_t 
     {
-        EASY,
-        MEDIUM,
-        HARD
+        EASY = 1,
+        MEDIUM = 2,
+        HARD = 3
     };
     
     enum SubtitlePanelSize : std::uint8_t
@@ -15,6 +15,14 @@ namespace GameConfig
         Small,
         Medium,
         Large
+    };
+    
+    enum AnimalState : std::uint8_t
+    {
+        Grazing,
+        Attacking,
+        Fleeing,
+        Following
     };
     
     constexpr int MAX_PLAYERS = 4;
@@ -31,6 +39,7 @@ namespace GameConfig
     constexpr auto DIFFICULTY = "options.instant.difficulty";
     constexpr auto AIP_STRING = "options.instant.string0";
     constexpr auto COMMANDER_ENABLED = "options.instant.aiCommander";
+    constexpr auto RECYCLER_ODF = "options.instant.string1";
     
     constexpr auto MPI_DIFFICULTY = "network.session.ivar127";
     constexpr auto MPI_INTRO_SCENE_ENABLED = "network.session.ivar126";

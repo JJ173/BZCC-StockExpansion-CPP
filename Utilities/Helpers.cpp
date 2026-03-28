@@ -20,7 +20,7 @@ void Helpers::AddObjectiveOverride(const char* name, const long color, const flo
 
 bool Helpers::IsPlayerWithinDistance(const char* path, const float distance, const int total_players)
 {
-    for (int i = 0; i < total_players; ++i)
+    for (int i = 1; i < total_players; ++i)
     {
         Handle player = GetPlayerHandle(i);
 

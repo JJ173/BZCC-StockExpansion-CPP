@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Managers\AnimalManager.cpp" />
     <ClCompile Include="..\Shared\DllBase.cpp" />
     <ClCompile Include="..\Shared\DLLUtils.cpp" />
     <ClCompile Include="..\Shared\Taunts.cpp" />
@@ -98,6 +99,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Managers\AnimalManager.h" />
     <ClInclude Include="..\Shared\DllBase.h" />
     <ClInclude Include="..\Shared\DLLUtils.h" />
     <ClInclude Include="..\Shared\GameConfig.h" />

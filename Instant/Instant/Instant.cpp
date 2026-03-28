@@ -1,6 +1,7 @@
 ﻿#include "Instant.h"
 
 #include <algorithm>
+#include <chrono>
 
 #include "../../shared/DLLUtils.h"
 #include "../../shared/TRNAllies.h"
@@ -359,7 +360,7 @@ bool Instant::IntroEnemiesKilled()
         // Set the standard ODF to spawn.
         std::string enemy_odf = "*vscout_c";
 
-        for (int i = 0; i < difficulty_; ++i)
+        for (int i = 1; i <= difficulty_; ++i)
         {
             // Replace the first character.
             enemy_odf[0] = cpu_race_char_;
@@ -373,18 +374,21 @@ bool Instant::IntroEnemiesKilled()
 
             // Build the enemy handle.
             const Handle enemy = BuildObject(enemy_odf.c_str(), comp_team_, position_path);
-
+            
             // Pick a target.
             switch (i)
             {
             case 0:
                 intro_enemy_1_ = enemy;
+                Goto(intro_enemy_1_, "Recycler", 1);
                 break;
             case 1:
                 intro_enemy_2_ = enemy;
+                Goto(intro_enemy_2_, "Recycler", 1);
                 break;
             default:
                 intro_enemy_3_ = enemy;
+                Goto(intro_enemy_3_, "Recycler", 1);
                 break;
             }
         }
@@ -397,7 +401,7 @@ bool Instant::IntroEnemiesKilled()
         && !Helpers::IsAliveAndOnTeam(intro_enemy_2_, comp_team_)
         && !Helpers::IsAliveAndOnTeam(intro_enemy_3_, comp_team_))
     {
-        intro_delay_ += mission_time_ + SecondsToTurns(3.0f);
+        intro_delay_ = mission_time_ + SecondsToTurns(3.0f);
         return true;
     }
 
@@ -489,11 +493,11 @@ void Instant::BuildPlayerRecycler(const Vector& position)
     else
     {
         char buffer[64] = {0};
-        IFace_GetString("options.instant.string1", buffer, sizeof(buffer));
+        IFace_GetString(GameConfig::RECYCLER_ODF, buffer, sizeof(buffer));
         custom_human_recycler = buffer;
     }
 
-    if (custom_human_recycler.empty())
+    if (!custom_human_recycler.empty())
     {
         recycler_ = BuildStartingVehicle(strat_team_, human_race_char_, custom_human_recycler, "*vrecy", position);
     }
@@ -523,8 +527,8 @@ void Instant::BuildPlayerVehicles(const Vector& position, const bool is_intro) c
 
     if (is_intro)
     {
-        Defend2(tank1, recycler_);
-        Defend2(tank2, recycler_);
+        Defend2(tank1, recycler_, 0);
+        Defend2(tank2, recycler_, 0);
     }
 
     if (difficulty_ < GameConfig::Difficulty::MEDIUM)
@@ -548,7 +552,7 @@ void Instant::BuildPlayerVehicles(const Vector& position, const bool is_intro) c
 
         if (is_intro)
         {
-            Follow(truck, recycler_);
+            Follow(truck, recycler_, 0);
         }
     }
 }
@@ -699,6 +703,7 @@ void Instant::SetupMission()
     game_over_ = false;
     comp_team_ = 6;
     strat_team_ = 1;
+    player_team_ = 1; // player_team_ will eventually change if it's a "Pilot" mode.
 
     // Check to see if we're in an MPI session and adjust variables.
     if (is_mpi_)
@@ -997,7 +1002,8 @@ void Instant::ISDFEndIntro()
 
     intro_music_volume_ -= 0.02f;
     intro_delay_ = mission_time_ + SecondsToTurns(0.3f);
-
+    SetVolume(intro_music_, intro_music_volume_);
+    
     if (intro_music_volume_ <= 0.0f)
     {
         StopAudio(intro_music_);
