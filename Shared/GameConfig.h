@@ -52,6 +52,16 @@ namespace GameConfig
     constexpr auto OPTIONS_AUDIO_MUSIC = "options.audio.music";
     constexpr auto OPTIONS_PLAY_SUBTITLES = "options.play.subtitles";
     
+    constexpr const char* BANE_MAPS[6] =
+    {
+        "dunesi.trn",
+        "chill.trn",
+        "ground4.trn",
+        "ground0.trn",
+        "MPIIsland.trn",
+        "sea_battle.trn"    
+    };
+    
     constexpr const char* CPU_NAMES[16] = 
     {
         "SIR BRAMBLEY",
@@ -70,6 +80,18 @@ namespace GameConfig
         "TheBonelord",
         "Lithium",
         "Uncle Kunckles"
+    };
+    
+    constexpr const char* MIRE_MAPS[8] = 
+    {
+        "bridges.trn",
+        "mpicanyons.trn",
+        "iacirclebzcc.trn",
+        "iadustbzcc.trn",
+        "iaentrapbzcc.trn",
+        "iafirebzcc.trn",
+        "iafortbzcc.trn",
+        "iaghzonebzcc.trn"
     };
 }
 #endif // GAMECONFIG_H

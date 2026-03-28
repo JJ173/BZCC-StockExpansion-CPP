@@ -11,4 +11,6 @@ public:
     static bool IsPlayerInBuilding(int total_players);
     static bool IsAliveAndOnTeam(Handle handle, int team);
     static bool IsAudioMessageFinished(int audio_handle, int audio_delay_time, int mission_time, bool is_coop);
+    
+    static int GetRandomInt(float max);
 };

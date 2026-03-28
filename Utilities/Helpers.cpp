@@ -1,5 +1,7 @@
 ﻿#include "Helpers.h"
 
+#include <cmath>
+
 void Helpers::AddObjectiveOverride(const char* name, const long color, const float show_time, const bool clear_existing,
                                    const bool is_coop)
 {
@@ -82,4 +84,9 @@ bool Helpers::IsAudioMessageFinished(const int audio_handle, const int audio_del
     }
 
     return IsAudioMessageDone(audio_handle);
+}
+
+int Helpers::GetRandomInt(const float max)
+{
+    return static_cast<int>(std::lround(GetRandomFloat(max)));
 }

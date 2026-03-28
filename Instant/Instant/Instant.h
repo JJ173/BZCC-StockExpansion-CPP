@@ -1,12 +1,15 @@
 ﻿#pragma once
 
 #include <string>
+
+#include "../../Managers/AnimalManager.h"
 #include "../../Shared/DllBase.h"
 #include "../../Utilities/Subtitles.h"
 
 class Instant : public DLLBase
 {
     Subtitles subtitles_;
+    AnimalManager animal_manager_;
     
     enum class ISDFIntroState : std::uint8_t
     {
@@ -65,6 +68,7 @@ class Instant : public DLLBase
     
     char human_race_char_;
     char cpu_race_char_;
+    const char* map_name_;
     
     float first_float_;
     float team_pos_[3 * (MAX_TEAMS + 1)];

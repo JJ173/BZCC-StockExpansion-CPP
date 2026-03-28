@@ -332,13 +332,13 @@ void Instant::HandleDropshipRemoval()
         RemoveObject(intro_ship_3_);
         dropship_3_removed_ = true;
     }
-    
+
     if (!dropship_takeoff_dialog_played_ && dropship_1_takeoff_ && dropship_2_takeoff_ && dropship_3_takeoff_)
     {
         intro_audio_ = subtitles_.AudioWithSubtitles("IA_Pilot_4.wav", GameConfig::SubtitlePanelSize::Small);
         dropship_takeoff_dialog_played_ = true;
     }
-    
+
     if (dropship_1_removed_ && dropship_2_removed_ && dropship_3_removed_)
     {
         dropship_takeoff_check_ = false;
@@ -374,7 +374,7 @@ bool Instant::IntroEnemiesKilled()
 
             // Build the enemy handle.
             const Handle enemy = BuildObject(enemy_odf.c_str(), comp_team_, position_path);
-            
+
             // Pick a target.
             switch (i)
             {
@@ -492,7 +492,7 @@ void Instant::BuildPlayerRecycler(const Vector& position)
     }
     else
     {
-        char buffer[64] = {0};
+        char buffer[64] = {};
         IFace_GetString(GameConfig::RECYCLER_ODF, buffer, sizeof(buffer));
         custom_human_recycler = buffer;
     }
@@ -704,6 +704,7 @@ void Instant::SetupMission()
     comp_team_ = 6;
     strat_team_ = 1;
     player_team_ = 1; // player_team_ will eventually change if it's a "Pilot" mode.
+    map_name_ = GetMapTRNFilename();
 
     // Check to see if we're in an MPI session and adjust variables.
     if (is_mpi_)
@@ -745,6 +746,35 @@ void Instant::SetupMission()
     }
 
     // TODO: Add Wildlife.
+    if (wildlife_enabled_)
+    {
+        // Need to check if the map_name_ variable is either a Mire map or a Bane map.
+        const bool is_mire_map = std::find(std::begin(GameConfig::MIRE_MAPS), std::end(GameConfig::MIRE_MAPS), map_name_) !=
+            std::end(GameConfig::MIRE_MAPS);
+        
+        if (is_mire_map)
+        {
+            animal_manager_.SetupMireMapHerds();
+        }
+        else
+        {
+            char mother_odf_buffer[32] = {};
+            char baby_odf_buffer[32] = {};
+            
+            if (std::strcmp(map_name_, "dunesi.trn") == 0)
+            {
+                strcpy_s(mother_odf_buffer, sizeof(mother_odf_buffer), "bcrhino_s");
+                strcpy_s(baby_odf_buffer, sizeof(baby_odf_buffer), "bcrhino_s_b");
+            }
+            else
+            {
+                strcpy_s(mother_odf_buffer, sizeof(mother_odf_buffer), "bcrhino_x");
+                strcpy_s(baby_odf_buffer, sizeof(baby_odf_buffer), "bcrhino_x_b");
+            }
+            
+            animal_manager_.SetupBaneMapHerds(mother_odf_buffer, baby_odf_buffer);
+        }
+    }
 
     // TODO: Create CPU Manager and initialize it here.
 
@@ -928,7 +958,7 @@ void Instant::ISDFDispatchUnits()
     BuildPlayerVehicles(GetPosition(recycler_), true);
 
     Goto(recycler_, "recycler_go", 0);
-    
+
     intro_delay_ = mission_time_ + SecondsToTurns(2.5f);
     isdf_intro_state_ = ISDFIntroState::PlayLine3;
 }
@@ -945,7 +975,7 @@ void Instant::ISDFIntroLine3()
     {
         StartSoundEffect("dropdoor.wav", intro_ship_3_);
     }
-    
+
     Goto(intro_turret_1_, "turret_1_go", 1);
     Goto(intro_turret_2_, "turret_2_go", 1);
 
@@ -1003,7 +1033,7 @@ void Instant::ISDFEndIntro()
     intro_music_volume_ -= 0.02f;
     intro_delay_ = mission_time_ + SecondsToTurns(0.3f);
     SetVolume(intro_music_, intro_music_volume_);
-    
+
     if (intro_music_volume_ <= 0.0f)
     {
         StopAudio(intro_music_);
