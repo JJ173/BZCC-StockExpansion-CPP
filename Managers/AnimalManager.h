@@ -6,22 +6,22 @@
 
 class AnimalManager
 {
-    const int MAX_HERDS = 5;
+    int MAX_HERDS = 5;
 
     struct Animal
     {
+        Vector flee_point;
         Handle handle;
         GameConfig::AnimalState state;
-        Vector flee_point;
     };
 
     struct AnimalHerd
     {
-        int team;
+        std::vector<Animal> babies; // Dynamically allocated array of animals
         const char* mother_odf;
         const char* baby_odf;
         Handle mother;
-        std::vector<Animal> babies; // Dynamically allocated array of animals
+        int team;
         int mother_attack_time;
         float baby_flee_distance;
         GameConfig::AnimalState state;
