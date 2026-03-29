@@ -744,13 +744,14 @@ void Instant::SetupMission()
             SetTeamColor(comp_team_, 85, 255, 85);
         }
     }
-    
+
     if (wildlife_enabled_)
     {
         // Need to check if the map_name_ variable is either a Mire map or a Bane map.
-        const bool is_mire_map = std::find(std::begin(GameConfig::MIRE_MAPS), std::end(GameConfig::MIRE_MAPS), map_name_) !=
+        const bool is_mire_map = std::find(std::begin(GameConfig::MIRE_MAPS), std::end(GameConfig::MIRE_MAPS),
+                                           map_name_) !=
             std::end(GameConfig::MIRE_MAPS);
-        
+
         if (is_mire_map)
         {
             animal_manager_.SetupMireMapHerds();
@@ -759,7 +760,7 @@ void Instant::SetupMission()
         {
             char mother_odf_buffer[32] = {};
             char baby_odf_buffer[32] = {};
-            
+
             if (std::strcmp(map_name_, "dunesi.trn") == 0)
             {
                 strcpy_s(mother_odf_buffer, sizeof(mother_odf_buffer), "bcrhino_s");
@@ -770,7 +771,7 @@ void Instant::SetupMission()
                 strcpy_s(mother_odf_buffer, sizeof(mother_odf_buffer), "bcrhino_x");
                 strcpy_s(baby_odf_buffer, sizeof(baby_odf_buffer), "bcrhino_x_b");
             }
-            
+
             animal_manager_.SetupBaneMapHerds(mother_odf_buffer, baby_odf_buffer);
         }
     }
@@ -848,13 +849,37 @@ void Instant::Execute()
 
     GameConditions();
 
-    // Generate CPU scrap cheat here.
+    if (next_cpu_scrap_time_ <= mission_time_)
+    {
+        AddScrap(comp_team_, cpu_scrap_amount_);
+        next_cpu_scrap_time_ = mission_time_ + cpu_scrap_delay_;
+    }
 }
 
 // ==================================================
 // Delegates
 // ==================================================
+void Instant::PreOrdnanceHit(const Handle shooter_handle, const Handle victim_handle, int ordnance_team,
+                             const char* ordnance_odf)
+{
+    char obj_class[64] = {};
+    if (!GetObjInfo(victim_handle, Get_EntityType, obj_class))
+    {
+        return;
+    }
 
+    if (std::strcmp(obj_class, "CLASS_ID_ANIMAL") == 0)
+    {
+        const char* victim_label = GetLabel(victim_handle);
+        int victim_index = 0;
+        if (sscanf_s(victim_label, "%d", &victim_index) != 1)
+        {
+            return;
+        }
+
+        animal_manager_.AnimalShot(victim_index, mission_time_, shooter_handle);
+    }
+}
 
 // ==================================================
 // ISDF Intro

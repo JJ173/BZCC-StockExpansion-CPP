@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include "DLLBase.h"
 
 // Globals, shared code

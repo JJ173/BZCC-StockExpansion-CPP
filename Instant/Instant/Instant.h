@@ -10,7 +10,7 @@ class Instant : public DLLBase
 {
     Subtitles subtitles_;
     AnimalManager animal_manager_;
-    
+
     enum class ISDFIntroState : std::uint8_t
     {
         Cleanup,
@@ -25,7 +25,7 @@ class Instant : public DLLBase
         CarrierLine2,
         End
     };
-    
+
     enum class ScionIntroState : std::uint8_t
     {
         Cleanup,
@@ -37,7 +37,7 @@ class Instant : public DLLBase
         PlayLine2,
         DeployPlayer,
     };
-    
+
     static constexpr int max_players = 4;
 
     int game_tps_;
@@ -62,19 +62,19 @@ class Instant : public DLLBase
     int dropship_2_time_;
     int dropship_3_time_;
     int last_int_;
-    
+
     ISDFIntroState isdf_intro_state_ = ISDFIntroState::Cleanup;
     ScionIntroState scion_intro_state_ = ScionIntroState::Cleanup;
-    
+
     char human_race_char_;
     char cpu_race_char_;
     const char* map_name_;
-    
+
     float first_float_;
     float team_pos_[3 * (MAX_TEAMS + 1)];
     float intro_music_volume_ = 1.0f;
     float last_float_;
-    
+
     bool first_bool_;
     bool start_done_;
     bool intro_done_;
@@ -96,7 +96,7 @@ class Instant : public DLLBase
     bool dropship_3_takeoff_;
     bool set_intro_music_volume_;
     bool last_bool_;
-    
+
     Handle first_handle_;
     Handle recycler_;
     Handle enemy_recycler_;
@@ -115,7 +115,8 @@ class Instant : public DLLBase
     Handle last_handle_;
 
     // Handle building any starting vehicles when the game begins.
-    Handle BuildStartingVehicle(int team, char race, const std::string& first_odf, const std::string& second_odf, const Vector& spawn_pos) const;
+    Handle BuildStartingVehicle(int team, char race, const std::string& first_odf, const std::string& second_odf,
+                                const Vector& spawn_pos) const;
 
     // Remove the ISDF intro units.
     void RemoveISDFIntroUnits() const;
@@ -128,7 +129,7 @@ class Instant : public DLLBase
 
     // Handles controlling Dropship takeoff and removal.
     void HandleDropshipRemoval();
-    
+
     // Handles checking the "Game Over" sequence.
     void GameConditions();
 
@@ -137,28 +138,28 @@ class Instant : public DLLBase
 
     // Handles updating the intros for each faction.
     void UpdateIntro();
-    
+
     // Handles the ISDF intro sequence.
     void UpdateISDFIntro();
-    
+
     // Handles the Scion intro sequence.
     void UpdateScionIntro();
-    
+
     // Handles advancing the ISDF intro state.
     void AdvanceISDFIntroState(ISDFIntroState next, float delay_seconds);
-    
+
     // Handles advancing the Scion intro state.
     void AdvanceScionIntroState(ScionIntroState next, float delay_seconds);
-    
+
     // Returns true if the intro can be advanced.
     bool CanAdvanceIntro() const;
-    
+
     // If the intro is enabled, check to see if the intro enemies are dead.
     bool IntroEnemiesKilled();
 
     // Handle building the player Recycler when the game begins.
     void BuildPlayerRecycler(const Vector& position);
-    
+
     // Handle building extra player vehicles depending on difficulty.
     void BuildPlayerVehicles(const Vector& position, bool is_intro = false) const;
 
@@ -180,33 +181,37 @@ class Instant : public DLLBase
     void ISDFSpawnCarriers();
     void ISDFCarrierLine2();
     void ISDFEndIntro();
-    
+
     // Scion Intro Functions.
-    
-    
+
+
 protected:
-    bool *b_array_;
+    bool* b_array_;
     int b_count_;
 
-    float *f_array_;
+    float* f_array_;
     int f_count_;
 
-    int *h_array_;
+    int* h_array_;
     int h_count_;
 
-    int *i_array_;
+    int* i_array_;
     int i_count_;
-    
+
 public:
     // Constructor
     Instant();
-    
+
     // Destructor
     ~Instant() override;
-    
+
     // Initial setup of the mission.
     void SetupMission();
-    
+
     // Runs each frame.
     void Execute() override;
+
+    // Handle delegate for PreOrdnanceHit.
+    void PreOrdnanceHit(Handle shooter_handle, Handle victim_handle, int ordnance_team,
+                        const char* ordnance_odf) override;
 };

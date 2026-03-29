@@ -5,7 +5,13 @@
 bool AnimalManager::IsValidHerdPath(const char* herd_path)
 {
     const Handle scrap = BuildObject("npscrx", 0, herd_path);
-    return scrap != 0;
+    if (scrap != 0)
+    {
+        RemoveObject(scrap);
+        return true;
+    }
+
+    return false;
 }
 
 void AnimalManager::SetupBaneMapHerds(const char* mother_odf, const char* baby_odf)
@@ -28,7 +34,7 @@ void AnimalManager::SetupBaneMapHerds(const char* mother_odf, const char* baby_o
         herd.team = 0;
         herd.mother_odf = mother_odf;
         herd.baby_odf = baby_odf;
-        herd.mother_attack_time = 0.0f;
+        herd.mother_attack_time = 0;
         herd.baby_flee_distance = 100.0f;
         herd.state = GameConfig::AnimalState::Grazing;
         herd.mother = BuildObject(mother_odf, 0, herd_path);
@@ -94,15 +100,23 @@ void AnimalManager::SetupMireMapHerds() const
 
 void AnimalManager::AnimalShot(const int herd_index, const int shot_turn, const Handle threat)
 {
-    if (herd_index < 0 || static_cast<size_t>(herd_index) >= herds_.size())
+    const int corrected_index = herd_index - 1;
+
+    if (corrected_index < 0 || static_cast<size_t>(corrected_index) >= herds_.size())
     {
         return;
     }
 
-    AnimalHerd* herd = &herds_[herd_index];
+    AnimalHerd* herd = &herds_[corrected_index];
 
     if (IsAround(herd->mother))
     {
+        if (herd->state == GameConfig::AnimalState::Attacking)
+        {
+            herd->mother_attack_time = shot_turn + SecondsToTurns(30.0f);
+            return;
+        }
+        
         herd->state = GameConfig::AnimalState::Attacking;
         herd->team = 15;
         StartSoundEffect("rhin08.wav", herd->mother);
