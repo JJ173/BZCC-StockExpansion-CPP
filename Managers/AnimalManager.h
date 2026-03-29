@@ -12,7 +12,7 @@ class AnimalManager
     {
         Handle handle;
         GameConfig::AnimalState state;
-        const char* flee_path;
+        Vector flee_point;
     };
 
     struct AnimalHerd
@@ -22,7 +22,7 @@ class AnimalManager
         const char* baby_odf;
         Handle mother;
         std::vector<Animal> babies; // Dynamically allocated array of animals
-        float mother_attack_time;
+        int mother_attack_time;
         float baby_flee_distance;
         GameConfig::AnimalState state;
     };
@@ -34,5 +34,7 @@ class AnimalManager
 
 public:
     void SetupBaneMapHerds(const char* mother_odf, const char* baby_odf);
-    void SetupMireMapHerds();
+    void SetupMireMapHerds() const;
+    void AnimalShot(int herd_index, int shot_turn, Handle threat);
+    void Execute(int mission_turn);
 };

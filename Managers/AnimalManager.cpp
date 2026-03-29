@@ -1,4 +1,5 @@
 ﻿#include "AnimalManager.h"
+#include <string>
 #include "../Utilities/Helpers.h"
 
 bool AnimalManager::IsValidHerdPath(const char* herd_path)
@@ -23,7 +24,6 @@ void AnimalManager::SetupBaneMapHerds(const char* mother_odf, const char* baby_o
             continue;
         }
 
-        // Create an AnimalHerd from the struct.
         AnimalHerd herd;
         herd.team = 0;
         herd.mother_odf = mother_odf;
@@ -33,26 +33,29 @@ void AnimalManager::SetupBaneMapHerds(const char* mother_odf, const char* baby_o
         herd.state = GameConfig::AnimalState::Grazing;
         herd.mother = BuildObject(mother_odf, 0, herd_path);
 
-        // Create a small random number of babies to follow the mother.
-        const int random_baby_count = Helpers::GetRandomInt(5.0f);
+        std::string herd_indexer = std::to_string(i);
+        SetLabel(herd.mother, herd_indexer.c_str());
 
+        const int random_baby_count = Helpers::GetRandomInt(5.0f);
         for (int j = 0; j < random_baby_count; j++)
         {
             Animal baby;
             baby.handle = BuildObject(baby_odf, 0, GetPositionNear(GetPosition(herd.mother), 20.0f, 35.0f));
             baby.state = GameConfig::AnimalState::Following;
-            baby.flee_path = nullptr;
+            baby.flee_point = Vector(0.0f, 0.0f, 0.0f);
             herd.babies.push_back(baby);
             SetRandomHeadingAngle(baby.handle);
+            SetLabel(baby.handle, herd_indexer.c_str());
+            Follow(baby.handle, herd.mother);
         }
 
         herds_.push_back(herd);
     }
-    
+
     enable_herd_logic_ = true;
 }
 
-void AnimalManager::SetupMireMapHerds()
+void AnimalManager::SetupMireMapHerds() const
 {
     for (int i = 1; i <= MAX_HERDS; i++)
     {
@@ -86,5 +89,123 @@ void AnimalManager::SetupMireMapHerds()
 
         const int random_bird_count = Helpers::GetRandomInt(6.0f);
         SpawnBirds(i, random_bird_count, "mcwing01", 0, herd_path);
+    }
+}
+
+void AnimalManager::AnimalShot(const int herd_index, const int shot_turn, const Handle threat)
+{
+    if (herd_index < 0 || static_cast<size_t>(herd_index) >= herds_.size())
+    {
+        return;
+    }
+
+    AnimalHerd* herd = &herds_[herd_index];
+
+    if (IsAround(herd->mother))
+    {
+        herd->state = GameConfig::AnimalState::Attacking;
+        herd->team = 15;
+        StartSoundEffect("rhin08.wav", herd->mother);
+        SetTeamNum(herd->mother, herd->team);
+
+        for (const Animal& baby : herd->babies)
+        {
+            if (!IsAround(baby.handle))
+            {
+                continue;
+            }
+
+            SetTeamNum(baby.handle, herd->team);
+        }
+
+        Attack(herd->mother, threat);
+        herd->mother_attack_time = shot_turn + SecondsToTurns(30.0f);
+    }
+    else
+    {
+        for (Animal& baby : herd->babies)
+        {
+            if (!IsAround(baby.handle))
+            {
+                continue;
+            }
+
+            baby.state = GameConfig::AnimalState::Fleeing;
+            baby.flee_point = GetPositionNear(GetPosition(threat), herd->baby_flee_distance + 60.0f,
+                                              herd->baby_flee_distance + 100.0f);
+            Goto(baby.handle, baby.flee_point);
+        }
+    }
+}
+
+void AnimalManager::Execute(const int mission_turn)
+{
+    if (!enable_herd_logic_)
+    {
+        return;
+    }
+
+    for (AnimalHerd& herd : herds_)
+    {
+        if (herd.state != GameConfig::AnimalState::Attacking)
+        {
+            continue;
+        }
+
+        if (mission_turn > herd.mother_attack_time)
+        {
+            // Return the herd back to neutral state.
+            herd.state = GameConfig::AnimalState::Grazing;
+            herd.team = 0;
+
+            SetTeamNum(herd.mother, herd.team);
+            Stop(herd.mother);
+
+            // Update the babies as well. Set them to team 0 and make them follow again.
+            for (Animal& baby : herd.babies)
+            {
+                if (!IsAround(baby.handle))
+                {
+                    continue;
+                }
+
+                baby.state = GameConfig::AnimalState::Following;
+                SetTeamNum(baby.handle, herd.team);
+                Follow(baby.handle, herd.mother);
+            }
+
+            return;
+        }
+
+        for (Animal& baby : herd.babies)
+        {
+            if (!IsAround(baby.handle))
+            {
+                continue;
+            }
+
+            switch (baby.state)
+            {
+            case GameConfig::AnimalState::Fleeing:
+                if (GetDistance(baby.handle, herd.mother) >= herd.baby_flee_distance + 20)
+                {
+                    baby.state = GameConfig::AnimalState::Following;
+                    Follow(baby.handle, herd.mother);
+                }
+                break;
+            case GameConfig::AnimalState::Following:
+                if (GetDistance(baby.handle, herd.mother) < herd.baby_flee_distance)
+                {
+                    baby.state = GameConfig::AnimalState::Fleeing;
+                    baby.flee_point = GetPositionNear(GetPosition(herd.mother), herd.baby_flee_distance + 20.0f,
+                                                      herd.baby_flee_distance + 50.0f);
+                    Goto(baby.handle, baby.flee_point);
+                }
+                break;
+            case GameConfig::AnimalState::Grazing:
+            case GameConfig::AnimalState::Attacking:
+                break;
+            }
+        }
     }
 }

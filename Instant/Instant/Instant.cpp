@@ -744,8 +744,7 @@ void Instant::SetupMission()
             SetTeamColor(comp_team_, 85, 255, 85);
         }
     }
-
-    // TODO: Add Wildlife.
+    
     if (wildlife_enabled_)
     {
         // Need to check if the map_name_ variable is either a Mire map or a Bane map.
@@ -832,6 +831,7 @@ void Instant::Execute()
 {
     mission_time_++;
     subtitles_.Execute();
+    animal_manager_.Execute(mission_time_);
 
     if (!start_done_)
     {
@@ -850,6 +850,11 @@ void Instant::Execute()
 
     // Generate CPU scrap cheat here.
 }
+
+// ==================================================
+// Delegates
+// ==================================================
+
 
 // ==================================================
 // ISDF Intro
