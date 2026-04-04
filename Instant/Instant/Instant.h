@@ -1,8 +1,10 @@
 ﻿#pragma once
 
+#include <memory>
 #include <string>
 
 #include "../../Managers/AnimalManager.h"
+#include "../../Managers/CarrierManager.h"
 #include "../../Shared/DllBase.h"
 #include "../../Utilities/Subtitles.h"
 
@@ -10,6 +12,7 @@ class Instant : public DLLBase
 {
     Subtitles subtitles_;
     AnimalManager animal_manager_;
+    CarrierManager carrier_manager_;
 
     enum class ISDFIntroState : std::uint8_t
     {
@@ -214,4 +217,5 @@ public:
     // Handle delegate for PreOrdnanceHit.
     void PreOrdnanceHit(Handle shooter_handle, Handle victim_handle, int ordnance_team,
                         const char* ordnance_odf) override;
+    void AddObject(const Handle new_handle) override;
 };

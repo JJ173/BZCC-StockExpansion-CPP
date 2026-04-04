@@ -29,7 +29,7 @@ int Subtitles::AudioWithSubtitles(const char* clip_name, GameConfig::SubtitlePan
         return audio_clip_;
     }
 
-    char subtitle_to_use[128];
+    char subtitle_to_use[GameConfig::MAX_NAME_LENGTH];
     CreateSubtitleName(clip_name, subtitle_to_use, sizeof(subtitle_to_use));
 
     subtitle_panel_size_ = panel_size;
@@ -94,7 +94,7 @@ void Subtitles::LoadSubtitles(const char* list_box, const char* subtitle_file)
 {
     IFace_ClearListBox(list_box);
 
-    char buffer[8192] = {};
+    char buffer[GameConfig::MAX_SUBTITLE_LENGTH] = {};
     size_t buf_size = sizeof(buffer);
 
     if (!LoadFile(subtitle_file, buffer, buf_size))

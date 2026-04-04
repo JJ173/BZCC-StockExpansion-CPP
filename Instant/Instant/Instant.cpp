@@ -191,7 +191,8 @@ void Instant::GameConditions()
 // ==================================================
 void Instant::BuildCarriers()
 {
-    // TODO: Create the carrier manager.
+    carrier_manager_.SetupCarrier(strat_team_, human_race_char_);
+    carrier_manager_.SetupCarrier(comp_team_, cpu_race_char_);
 }
 
 // ==================================================
@@ -208,7 +209,7 @@ void Instant::RemoveISDFIntroUnits() const
     for (int i = 1; i <= max_players; ++i)
     {
         // Create the string for the handle we need to find.
-        char handle_name[64] = {};
+        char handle_name[GameConfig::MAX_NAME_LENGTH] = {};
         if (sprintf_s(handle_name, sizeof(handle_name), "player_spawn_i_%d", i) < 0)
         {
             handle_name[0] = '\0';
@@ -233,7 +234,7 @@ void Instant::RemoveScionIntroUnits() const
     for (int i = 1; i <= max_players; ++i)
     {
         // Create the string for the handle we need to find.
-        char handle_name[64] = {};
+        char handle_name[GameConfig::MAX_NAME_LENGTH] = {};
         if (sprintf_s(handle_name, sizeof(handle_name), "player_spawn_f_%d", i) < 0)
         {
             handle_name[0] = '\0';
@@ -366,7 +367,7 @@ bool Instant::IntroEnemiesKilled()
             enemy_odf[0] = cpu_race_char_;
 
             // Position that we're building at.
-            char position_path[64] = {};
+            char position_path[GameConfig::MAX_NAME_LENGTH] = {};
             if (sprintf_s(position_path, sizeof(position_path), "intro_attacker_%d", i) < 0)
             {
                 position_path[0] = '\0';
@@ -492,7 +493,7 @@ void Instant::BuildPlayerRecycler(const Vector& position)
     }
     else
     {
-        char buffer[64] = {};
+        char buffer[GameConfig::MAX_ODF_LENGTH] = {};
         IFace_GetString(GameConfig::RECYCLER_ODF, buffer, sizeof(buffer));
         custom_human_recycler = buffer;
     }
@@ -567,7 +568,7 @@ Handle Instant::SetupPlayer(const int team)
     player_count_++;
     IFace_SetInteger(GameConfig::MPI_PLAYER_COUNT, player_count_);
 
-    char player_count_message[64];
+    char player_count_message[GameConfig::MAX_CONSOLE_MSG_LENGTH];
     if (sprintf_s(player_count_message, sizeof(player_count_message), "[IA 2.0]: Registering New Player Count: %d",
                   player_count_) < 0)
     {
@@ -596,7 +597,7 @@ Handle Instant::SetupPlayer(const int team)
 
     if (intro_cutscene_enabled_)
     {
-        char spawn_handle_name[64];
+        char spawn_handle_name[GameConfig::MAX_NAME_LENGTH];
 
         if (sprintf_s(spawn_handle_name, sizeof(spawn_handle_name), "player_spawn_%c_%d",
                       is_mpi_ ? GetRaceOfTeam(team) : human_race_char_, team) < 0)
@@ -611,7 +612,7 @@ Handle Instant::SetupPlayer(const int team)
 
     if (player_h == 0)
     {
-        char player_spawn_handle_log[128];
+        char player_spawn_handle_log[GameConfig::MAX_CONSOLE_MSG_LENGTH];
         if (sprintf_s(player_spawn_handle_log, sizeof(player_spawn_handle_log),
                       "[IA 2.0]: No pre-placed spawns found for team: %d. Spawning a new ship.", team) < 0)
         {
@@ -631,7 +632,7 @@ Handle Instant::SetupPlayer(const int team)
         }
         else
         {
-            char new_player_odf[64];
+            char new_player_odf[GameConfig::MAX_ODF_LENGTH];
             if (sprintf_s(new_player_odf, sizeof(new_player_odf), "%cvscout_x", human_race_char_) < 0)
             {
                 new_player_odf[0] = '\0';
@@ -647,7 +648,7 @@ Handle Instant::SetupPlayer(const int team)
     team_pos_[3 * team + 1] = team_spawn_pos.y;
     team_pos_[3 * team + 2] = team_spawn_pos.z;
 
-    char player_pilot_odf[64];
+    char player_pilot_odf[GameConfig::MAX_ODF_LENGTH];
     if (sprintf_s(player_pilot_odf, sizeof(player_pilot_odf), "%cspilo_x",
                   is_mpi_ ? GetRaceOfTeam(team) : human_race_char_) < 0)
     {
@@ -673,7 +674,7 @@ void Instant::CleanSpawns() const
             continue;
         }
 
-        char spawn_handle_name[64];
+        char spawn_handle_name[GameConfig::MAX_ODF_LENGTH];
         if (sprintf_s(spawn_handle_name, sizeof(spawn_handle_name), "player_spawn_%c_%d", human_race_char_, i) < 0)
         {
             spawn_handle_name[0] = '\0';
@@ -758,8 +759,8 @@ void Instant::SetupMission()
         }
         else
         {
-            char mother_odf_buffer[32] = {};
-            char baby_odf_buffer[32] = {};
+            char mother_odf_buffer[GameConfig::MAX_ODF_LENGTH] = {};
+            char baby_odf_buffer[GameConfig::MAX_ODF_LENGTH] = {};
 
             if (std::strcmp(map_name_, "dunesi.trn") == 0)
             {
@@ -775,7 +776,7 @@ void Instant::SetupMission()
             animal_manager_.SetupBaneMapHerds(mother_odf_buffer, baby_odf_buffer);
         }
     }
-
+        
     // TODO: Create CPU Manager and initialize it here.
 
     intro_ship_1_ = GetHandle("intro_drop_1");
@@ -807,6 +808,7 @@ void Instant::SetupMission()
         BuildStartingVehicle(player_team_, human_race_char_, "*vturr_xm", "*vturr",
                              GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
         BuildPlayerVehicles(GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
+        BuildCarriers();
     }
 
     const Handle player_entry_h = GetPlayerHandle(1);
@@ -833,6 +835,7 @@ void Instant::Execute()
     mission_time_++;
     subtitles_.Execute();
     animal_manager_.Execute(mission_time_);
+    carrier_manager_.Execute(mission_time_);
 
     if (!start_done_)
     {
@@ -862,7 +865,7 @@ void Instant::Execute()
 void Instant::PreOrdnanceHit(const Handle shooter_handle, const Handle victim_handle, int ordnance_team,
                              const char* ordnance_odf)
 {
-    char obj_class[64] = {};
+    char obj_class[GameConfig::MAX_ODF_LENGTH] = {};
     if (!GetObjInfo(victim_handle, Get_EntityType, obj_class))
     {
         return;
@@ -879,6 +882,53 @@ void Instant::PreOrdnanceHit(const Handle shooter_handle, const Handle victim_ha
 
         animal_manager_.AnimalShot(victim_index, mission_time_, shooter_handle);
     }
+}
+
+void Instant::AddObject(const Handle new_handle)
+{
+    const int team = GetTeamNum(new_handle);
+
+    if (team == player_team_)
+    {
+        SetSkill(new_handle, 3);
+    }
+    else if (team == comp_team_)
+    {
+        SetSkill(new_handle, difficulty_);
+    }
+
+    // ODF Specific stuff below here.
+
+    char obj_odf[GameConfig::MAX_ODF_LENGTH] = {};
+    if (!GetObjInfo(new_handle, Get_ODF, obj_odf))
+    {
+        return;
+    }
+
+    // Grab the relevant ODF strings from the handle's ODF file.
+    const bool is_open = OpenODF(obj_odf);
+    if (!is_open)
+    {
+        return;
+    }
+
+    char odf_value[GameConfig::MAX_ODF_LENGTH] = {};
+    GetODFString(obj_odf, "GameObjectClass", "AIUnitType", GameConfig::MAX_ODF_LENGTH, odf_value);
+
+    // Check to see if the ODF AI Unit Type is specific.
+    if (std::strcmp(odf_value, "LandingPad") == 0)
+    {
+        carrier_manager_.RegisterLandingPad(new_handle, team);
+    }
+    else if (std::strcmp(odf_value, "DropshipRequest") == 0)
+    {
+        // Create a cooldown length based on difficulty. 5 minutes for easy, 7.5 for medium, 10 for hard.        
+        carrier_manager_.RegisterDropshipRequest(new_handle, team,
+                                                 mission_time_ + SecondsToTurns(
+                                                     GameConfig::GetDropshipCooldownRequestTime(difficulty_)));
+    }
+
+    CloseODF(obj_odf);
 }
 
 // ==================================================

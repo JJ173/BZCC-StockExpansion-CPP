@@ -18,7 +18,7 @@ void AnimalManager::SetupBaneMapHerds(const char* mother_odf, const char* baby_o
 {
     for (int i = 1; i <= MAX_HERDS; i++)
     {
-        char herd_path[64] = {};
+        char herd_path[GameConfig::MAX_NAME_LENGTH] = {};
         if (sprintf_s(herd_path, sizeof(herd_path), "AnimalHerd%d", i) < 0)
         {
             herd_path[0] = '\0';
@@ -65,7 +65,7 @@ void AnimalManager::SetupMireMapHerds() const
 {
     for (int i = 1; i <= MAX_HERDS; i++)
     {
-        char herd_path[64] = {};
+        char herd_path[GameConfig::MAX_NAME_LENGTH] = {};
         if (sprintf_s(herd_path, sizeof(herd_path), "AnimalHerd%d", i) < 0)
         {
             herd_path[0] = '\0';
@@ -119,9 +119,9 @@ void AnimalManager::AnimalShot(const int herd_index, const int shot_turn, const 
         
         herd->state = GameConfig::AnimalState::Attacking;
         herd->team = 15;
-        StartSoundEffect("rhin08.wav", herd->mother);
-        SetTeamNum(herd->mother, herd->team);
-
+        const int animal_scream = StartAudio3D("rhin08.wav", herd->mother);
+        SetVolume(animal_scream, 0.3f);
+        
         for (const Animal& baby : herd->babies)
         {
             if (!IsAround(baby.handle))

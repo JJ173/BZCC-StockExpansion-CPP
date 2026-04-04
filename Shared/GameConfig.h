@@ -1,22 +1,41 @@
 ﻿#ifndef GAMECONFIG_H
 #define GAMECONFIG_H
 
+#include <cstdint>
+#include <cstring>
+#include <string>
+
 namespace GameConfig
 {
-    enum Difficulty : std::uint8_t 
+    struct KeyValuePair
+    {
+        const char* key;
+        const char* value;
+    };
+
+    enum : std::uint16_t
+    {
+        MAX_ODF_LENGTH = 64,
+        MAX_NAME_LENGTH = 256,
+        MAX_CONSOLE_MSG_LENGTH = 512,
+        MAX_MESSAGE_LENGTH = 2048,
+        MAX_SUBTITLE_LENGTH = 8192
+    };
+
+    enum Difficulty : std::uint8_t
     {
         EASY = 1,
         MEDIUM = 2,
         HARD = 3
     };
-    
+
     enum SubtitlePanelSize : std::uint8_t
     {
         Small,
         Medium,
         Large
     };
-    
+
     enum AnimalState : std::uint8_t
     {
         Grazing,
@@ -24,13 +43,23 @@ namespace GameConfig
         Fleeing,
         Following
     };
-    
+
+    enum CondorState : std::uint8_t
+    {
+        Landing,
+        Replace,
+        BuildUnits,
+        OffloadUnits,
+        Leave,
+        Remove
+    };
+
     constexpr int MAX_PLAYERS = 4;
     constexpr int DEFAULT_TPS = 20;
-    
+
     constexpr char FACTION_ISDF = 'i';
     constexpr char FACTION_SCION = 'f';
-    
+
     constexpr auto CAN_RESPAWN = "options.instant.bool0";
     constexpr auto INTRO_SCENE_ENABLED = "options.instant.introScene";
     constexpr auto WILDLIFE_ENABLED = "options.instant.wildlife";
@@ -40,7 +69,7 @@ namespace GameConfig
     constexpr auto AIP_STRING = "options.instant.string0";
     constexpr auto COMMANDER_ENABLED = "options.instant.aiCommander";
     constexpr auto RECYCLER_ODF = "options.instant.string1";
-    
+
     constexpr auto MPI_DIFFICULTY = "network.session.ivar127";
     constexpr auto MPI_INTRO_SCENE_ENABLED = "network.session.ivar126";
     constexpr auto MPI_WILDLIFE_ENABLED = "network.session.ivar125";
@@ -48,10 +77,10 @@ namespace GameConfig
     constexpr auto MPI_SNIPEABLE_ENEMIES = "network.session.ivar123";
     constexpr auto MPI_PLAYER_COUNT = "network.session.ivar64";
     constexpr auto MPI_CPU_TEAM_RACE = "network.session.ivar13";
-    
+
     constexpr auto OPTIONS_AUDIO_MUSIC = "options.audio.music";
     constexpr auto OPTIONS_PLAY_SUBTITLES = "options.play.subtitles";
-    
+
     constexpr const char* BANE_MAPS[6] =
     {
         "dunesi.trn",
@@ -59,10 +88,10 @@ namespace GameConfig
         "ground4.trn",
         "ground0.trn",
         "MPIIsland.trn",
-        "sea_battle.trn"    
+        "sea_battle.trn"
     };
-    
-    constexpr const char* CPU_NAMES[16] = 
+
+    constexpr const char* CPU_NAMES[16] =
     {
         "SIR BRAMBLEY",
         "GrizzlyOne95",
@@ -81,8 +110,8 @@ namespace GameConfig
         "Lithium",
         "Uncle Kunckles"
     };
-    
-    constexpr const char* MIRE_MAPS[8] = 
+
+    constexpr const char* MIRE_MAPS[8] =
     {
         "bridges.trn",
         "mpicanyons.trn",
@@ -93,5 +122,60 @@ namespace GameConfig
         "iafortbzcc.trn",
         "iaghzonebzcc.trn"
     };
+
+    static constexpr KeyValuePair CondorUnits[] =
+    {
+        {"ScavengerDropship", "ivscav_x"},
+        {"ScrapDropship", "ivscrap_gh"},
+        {"LightDropship", "ivmisl_x"},
+        {"TurretDropship", "ivturr_x"}
+    };
+
+    static constexpr KeyValuePair PortalUnits[] =
+    {
+        {"ScavengerDropship", "fvscav_x"},
+        {"ScrapDropship", "fvscrap_gh"},
+        {"LightDropship", "fvsent_x"},
+        {"TurretDropship", "fvturr_x"}
+    };
+    
+    inline const char* GetPortalUnit(const std::string& name)
+    {
+        for (const auto& entry : PortalUnits)
+        {
+            if (std::strcmp(entry.key, name.c_str()) == 0)
+            {
+                return entry.value;
+            }
+        }
+        return nullptr;
+    }
+
+    inline const char* GetCondorUnit(const std::string& name)
+    {
+        for (const auto& entry : CondorUnits)
+        {
+            if (std::strcmp(entry.key, name.c_str()) == 0)
+            {
+                return entry.value;
+            }
+        }
+        return nullptr;
+    }
+
+    inline float GetDropshipCooldownRequestTime(const int difficulty)
+    {
+        switch (difficulty)
+        {
+        case EASY:
+            return DEFAULT_TPS * 60 * 5.0f;
+        case MEDIUM:
+            return DEFAULT_TPS * 60 * 7.5f;
+        case HARD:
+            return DEFAULT_TPS * 60 * 10.0f;
+        default:
+            return 0.0f;
+        }
+    }
 }
 #endif // GAMECONFIG_H
