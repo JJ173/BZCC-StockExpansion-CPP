@@ -776,8 +776,8 @@ void Instant::SetupMission()
             animal_manager_.SetupBaneMapHerds(mother_odf_buffer, baby_odf_buffer);
         }
     }
-        
-    // TODO: Create CPU Manager and initialize it here.
+    
+    cpu_manager_.RegisterNewTeam(comp_team_, cpu_race_char_, "RecyclerEnemy", false);
 
     intro_ship_1_ = GetHandle("intro_drop_1");
     intro_ship_2_ = GetHandle("intro_drop_2");
@@ -895,6 +895,11 @@ void Instant::AddObject(const Handle new_handle)
     else if (team == comp_team_)
     {
         SetSkill(new_handle, difficulty_);
+        
+        if (Helpers::IsRecycler(new_handle))
+        {
+            enemy_recycler_ = new_handle;
+        }
     }
 
     // ODF Specific stuff below here.

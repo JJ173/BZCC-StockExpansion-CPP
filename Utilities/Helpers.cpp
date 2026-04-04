@@ -136,3 +136,26 @@ void Helpers::TeleportOut(const Handle handle)
     BuildObject("teleportout", GetTeamNum(handle), GetPosition(handle));
     RemoveObject(handle);
 }
+
+bool Helpers::IsRecycler(const Handle handle)
+{
+    char obj_class[GameConfig::MAX_ODF_LENGTH];
+    GetObjInfo(handle, Get_GOClass, obj_class);
+    
+    constexpr const char* recycler_classes[] = 
+    {
+        "CLASS_RECYCLERVEHICLE",
+        "CLASS_RECYCLER",
+        "CLASS_RECYCLERVEHICLEH"
+    };
+    
+    for (const char* recycler_class : recycler_classes)
+    {
+        if (strcmp(obj_class, recycler_class) == 0)
+        {
+            return true;
+        }
+    }
+    
+    return false;
+}

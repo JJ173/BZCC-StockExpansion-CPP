@@ -15,6 +15,7 @@ public:
     static bool IsAliveAndOnTeam(Handle handle, int team);
     static bool IsAudioMessageFinished(int audio_handle, int audio_delay_time, int mission_time, bool is_coop);
     static bool Teleport(Handle handle, const Vector& destination, float offset);
+    static bool IsRecycler(Handle handle);
     
     static int GetRandomInt(float max);
     

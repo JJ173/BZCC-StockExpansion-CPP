@@ -53,6 +53,18 @@ namespace GameConfig
         Leave,
         Remove
     };
+    
+    enum AIPType : std::uint8_t
+    {
+        AIPType0, 
+        AIPType1, 
+        AIPType2, 
+        AIPType3, 
+        AIPTypeA, 
+        AIPTypeL, 
+        AIPTypeS, 
+        MAX_AIP_TYPE, 
+    };
 
     constexpr int MAX_PLAYERS = 4;
     constexpr int DEFAULT_TPS = 20;

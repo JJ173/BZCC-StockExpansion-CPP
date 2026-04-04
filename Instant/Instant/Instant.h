@@ -5,6 +5,7 @@
 
 #include "../../Managers/AnimalManager.h"
 #include "../../Managers/CarrierManager.h"
+#include "../../Managers/CPUManager.h"
 #include "../../Shared/DllBase.h"
 #include "../../Utilities/Subtitles.h"
 
@@ -13,6 +14,7 @@ class Instant : public DLLBase
     Subtitles subtitles_;
     AnimalManager animal_manager_;
     CarrierManager carrier_manager_;
+    CPUManager cpu_manager_;
 
     enum class ISDFIntroState : std::uint8_t
     {
