@@ -30,18 +30,7 @@ void CarrierManager::SetupCarrier(const int team, const char faction)
         PrintConsoleMessage("[CM]: Failed to write to the spawn_path character array. Aborting process... Please report this as a bug.");
         return;
     }
-    
-    const Handle spawner = BuildObject("pspwn_1", team, spawn_path);
-    if (!IsAround(spawner))
-    {
-        char console_log[GameConfig::MAX_CONSOLE_MSG_LENGTH] = {};
-        if (sprintf_s(console_log, sizeof(console_log), "[CM]: Carrier spawn path not found for team %d", team) > 0)
-        {
-            PrintConsoleMessage(console_log);
-        }
-        return;
-    }
-    
+        
     char odf[GameConfig::MAX_ODF_LENGTH] = {};
     if (sprintf_s(odf, sizeof(odf), "%cbcarrier_xm", faction) < 0)
     {
@@ -49,9 +38,8 @@ void CarrierManager::SetupCarrier(const int team, const char faction)
         return;
     }
     
-    Vector pos = GetPosition(spawner);
+    Vector pos = Helpers::GetPathPosition(spawn_path);
     pos.y = TerrainFindFloor(pos.x, pos.z) + 800.0f;
-    RemoveObject(spawner);
     
     Carrier carrier;
     carrier.team = team;

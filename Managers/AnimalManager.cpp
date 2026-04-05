@@ -80,13 +80,7 @@ void AnimalManager::SetupMireMapHerds() const
         const int random_jak_count = Helpers::GetRandomInt(6.0f);
         for (int j = 0; j < random_jak_count; j++)
         {
-            const Handle spawner = BuildObject("pspwn_1", 0, herd_path);
-            if (spawner == 0)
-            {
-                continue;
-            }
-
-            Vector pos = GetPositionNear(GetPosition(spawner), 100.0f, 100.0f);
+            Vector pos = GetPositionNear(Helpers::GetPathPosition(herd_path), 100.0f, 100.0f);
             pos.y = TerrainFindFloor(pos.x, pos.z) + 2.5f;
 
             const Handle jak = BuildObject("mcjak01", 0, pos);

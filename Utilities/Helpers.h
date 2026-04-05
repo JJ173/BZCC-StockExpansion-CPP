@@ -20,4 +20,6 @@ public:
     static int GetRandomInt(float max);
     
     static Handle TeleportIn(const char* odf, int team, const Vector& position);
+    
+    static Vector GetPathPosition(const char* path);
 };

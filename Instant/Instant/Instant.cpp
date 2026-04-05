@@ -590,9 +590,8 @@ Handle Instant::SetupPlayer(const int team)
             is_team_setup_[cmd_team] = true;
         }
     }
-
-    const Handle spawner = BuildObject("pspwn_1", 0, "Recycler");
-    Vector team_spawn_pos = GetPositionNear(GetPosition(spawner), 25.0f, 25.0f);
+    
+    Vector team_spawn_pos = GetPositionNear(Helpers::GetPathPosition("Recycler"), 25.0f, 25.0f);
     Handle player_h = 0;
 
     if (intro_cutscene_enabled_)
@@ -702,9 +701,6 @@ void Instant::SetupMission()
     mission_time_ = 0;
     start_done_ = false;
     game_over_ = false;
-    comp_team_ = 6;
-    strat_team_ = 1;
-    player_team_ = 1; // player_team_ will eventually change if it's a "Pilot" mode.
     map_name_ = GetMapTRNFilename();
 
     // Check to see if we're in an MPI session and adjust variables.
@@ -717,6 +713,7 @@ void Instant::SetupMission()
         human_race_char_ = GetRaceOfTeam(strat_team_);
         snipeable_enemies_ = IFace_GetInteger(GameConfig::MPI_SNIPEABLE_ENEMIES) > 0;
         cpu_scrap_delay_ = (4 - difficulty_) * 2 / CountPlayers();
+        cpu_recycler_odf_ = GetVarItemStr(GameConfig::MPI_CPU_RECYCLER_ODF);
     }
     else
     {
@@ -727,6 +724,7 @@ void Instant::SetupMission()
         human_race_char_ = static_cast<char>(IFace_GetInteger(GameConfig::MY_RACE));
         can_respawn_ = IFace_GetInteger(GameConfig::CAN_RESPAWN) > 0;
         cpu_scrap_delay_ = (4 - difficulty_) * 2;
+        cpu_recycler_odf_ = GetVarItemStr(GameConfig::CPU_RECYCLER_ODF);
     }
 
     vsr_taunt_easter_egg_time_ = mission_time_ + SecondsToTurns(600.0f);
@@ -745,7 +743,22 @@ void Instant::SetupMission()
             SetTeamColor(comp_team_, 85, 255, 85);
         }
     }
-
+    
+    char cpu_recycler_odf[GameConfig::MAX_ODF_LENGTH] = {};
+    if (cpu_recycler_odf_ != nullptr && cpu_recycler_odf_[0] != '\0')
+    {
+        strcpy_s(cpu_recycler_odf, sizeof(cpu_recycler_odf), cpu_recycler_odf_);
+    }
+    else
+    {
+        strcpy_s(cpu_recycler_odf, sizeof(cpu_recycler_odf), "*vrecycpu");
+    }
+        
+    enemy_recycler_ = BuildStartingVehicle(comp_team_, cpu_race_char_, cpu_recycler_odf, "*vrecy", Helpers::GetPathPosition("RecyclerEnemy"));
+    
+    BuildStartingVehicle(comp_team_, cpu_race_char_, "*vturr_c", "vturr_x", Helpers::GetPathPosition("TurretEnemy1"));
+    BuildStartingVehicle(comp_team_, cpu_race_char_, "*vturr_c", "vturr_x", Helpers::GetPathPosition("TurretEnemy2"));
+    
     if (wildlife_enabled_)
     {
         // Need to check if the map_name_ variable is either a Mire map or a Bane map.
@@ -777,7 +790,7 @@ void Instant::SetupMission()
         }
     }
     
-    cpu_manager_.RegisterNewTeam(comp_team_, cpu_race_char_, "RecyclerEnemy", false);
+    cpu_manager_.RegisterNewTeam(comp_team_, cpu_race_char_, "RecyclerEnemy", false, human_race_char_);
 
     intro_ship_1_ = GetHandle("intro_drop_1");
     intro_ship_2_ = GetHandle("intro_drop_2");
@@ -797,16 +810,11 @@ void Instant::SetupMission()
     if (!intro_cutscene_enabled_)
     {
         DisableIntro();
-
-        const Handle recycler_spawn_h = BuildObject("pspwn_1", 0, "Recycler");
-        BuildPlayerRecycler(GetPosition(recycler_spawn_h));
-        RemoveObject(recycler_spawn_h);
+        BuildPlayerRecycler(Helpers::GetPathPosition("Recycler"));
 
         const Vector recycler_spawn_pos = GetPosition(recycler_);
-        BuildStartingVehicle(player_team_, human_race_char_, "*vturr_xm", "*vturr",
-                             GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
-        BuildStartingVehicle(player_team_, human_race_char_, "*vturr_xm", "*vturr",
-                             GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
+        BuildStartingVehicle(player_team_, human_race_char_, "*vturr_xm", "*vturr_x", GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
+        BuildStartingVehicle(player_team_, human_race_char_, "*vturr_xm", "*vturr_x", GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
         BuildPlayerVehicles(GetPositionNear(recycler_spawn_pos, 40.0f, 60.0f));
         BuildCarriers();
     }
@@ -886,6 +894,27 @@ void Instant::PreOrdnanceHit(const Handle shooter_handle, const Handle victim_ha
 
 void Instant::AddObject(const Handle new_handle)
 {
+    char obj_class[GameConfig::MAX_ODF_LENGTH] = {};
+    GetObjInfo(new_handle, Get_GOClass, obj_class);
+    
+    if (std::strcmp(obj_class, "CLASS_DEPOSIT") == 0)
+    {
+        cpu_manager_.AddMapPool(new_handle);
+        return;
+    }
+    
+    if (std::strcmp(obj_class, "CLASS_SCRAP") == 0)
+    {
+        cpu_manager_.AddMapScrap(new_handle);
+        return;
+    }
+    
+    if (std::strcmp(obj_class, "CLASS_POWERUP_SERVICE") == 0)
+    {
+        cpu_manager_.AddServicePod(new_handle);
+        return;
+    }
+    
     const int team = GetTeamNum(new_handle);
 
     if (team == player_team_)
@@ -901,39 +930,55 @@ void Instant::AddObject(const Handle new_handle)
             enemy_recycler_ = new_handle;
         }
     }
-
-    // ODF Specific stuff below here.
-
+    
     char obj_odf[GameConfig::MAX_ODF_LENGTH] = {};
     if (!GetObjInfo(new_handle, Get_ODF, obj_odf))
     {
         return;
     }
-
-    // Grab the relevant ODF strings from the handle's ODF file.
+    
     const bool is_open = OpenODF(obj_odf);
     if (!is_open)
     {
         return;
     }
 
-    char odf_value[GameConfig::MAX_ODF_LENGTH] = {};
-    GetODFString(obj_odf, "GameObjectClass", "AIUnitType", GameConfig::MAX_ODF_LENGTH, odf_value);
+    char ai_unit_type[GameConfig::MAX_ODF_LENGTH] = {};
+    GetODFString(obj_odf, "GameObjectClass", "AIUnitType", GameConfig::MAX_ODF_LENGTH, ai_unit_type);
 
-    // Check to see if the ODF AI Unit Type is specific.
-    if (std::strcmp(odf_value, "LandingPad") == 0)
+    if (strcmp(ai_unit_type, GameConfig::AIUnitType::LANDING_PAD) == 0)
     {
         carrier_manager_.RegisterLandingPad(new_handle, team);
     }
-    else if (std::strcmp(odf_value, "DropshipRequest") == 0)
+    else if (strcmp(ai_unit_type, GameConfig::AIUnitType::DROPSHIP_REQUEST) == 0)
     {
-        // Create a cooldown length based on difficulty. 5 minutes for easy, 7.5 for medium, 10 for hard.        
-        carrier_manager_.RegisterDropshipRequest(new_handle, team,
-                                                 mission_time_ + SecondsToTurns(
-                                                     GameConfig::GetDropshipCooldownRequestTime(difficulty_)));
+        carrier_manager_.RegisterDropshipRequest(new_handle, team,mission_time_ + SecondsToTurns(GameConfig::GetDropshipCooldownRequestTime(difficulty_)));
+    }
+            
+    if (team == comp_team_)
+    {
+        cpu_manager_.AddTeamObject(new_handle, mission_time_, team, ai_unit_type);
     }
 
     CloseODF(obj_odf);
+}
+
+void Instant::DeleteObject(const Handle dead_handle)
+{
+    char obj_class[GameConfig::MAX_ODF_LENGTH] = {};
+    GetObjInfo(dead_handle, Get_GOClass, obj_class);
+    
+    if (std::strcmp(obj_class, "CLASS_SCRAP") == 0)
+    {
+        cpu_manager_.RemoveMapScrap(dead_handle);
+        return;
+    }
+    
+    if (std::strcmp(obj_class, "CLASS_POWERUP_SERVICE") == 0)
+    {
+        cpu_manager_.RemoveServicePod(dead_handle);
+        return;
+    }
 }
 
 // ==================================================
@@ -1031,15 +1076,8 @@ void Instant::ISDFDispatchUnits()
     {
         SetAnimation(intro_ship_3_, "deploy", 1);
     }
-
-    const Handle recycler_spawn_h = BuildObject("pspwn_1", 0, "Recycler");
-    BuildPlayerRecycler(GetPosition(intro_ship_1_));
-
-    Matrix pos;
-    GetPosition2(recycler_spawn_h, pos);
-    SetPosition(recycler_, pos);
-    RemoveObject(recycler_spawn_h);
-
+    
+    BuildPlayerRecycler(Helpers::GetPathPosition("Recycler"));
     BuildPlayerVehicles(GetPosition(recycler_), true);
 
     Goto(recycler_, "recycler_go", 0);

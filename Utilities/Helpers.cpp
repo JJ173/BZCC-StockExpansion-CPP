@@ -159,3 +159,16 @@ bool Helpers::IsRecycler(const Handle handle)
     
     return false;
 }
+
+Vector Helpers::GetPathPosition(const char* path)
+{
+    if (path == nullptr)
+    {
+        return {0.0f, 0.0f, 0.0f};
+    }
+    
+    const Handle spawner = BuildObject("pspwn_1", 0 , path);
+    const Vector pos = GetPosition(spawner);
+    RemoveObject(spawner);
+    return pos;   
+}

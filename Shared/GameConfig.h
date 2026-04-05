@@ -7,6 +7,23 @@
 
 namespace GameConfig
 {
+    namespace AIUnitType
+    {
+        constexpr auto ANTI_AIR = "AntiAir";
+        constexpr auto APC_PATROL = "APCPatrol";
+        constexpr auto ASSAULT = "Assault";
+        constexpr auto ASSAULT_DEFENDER = "AssaultDefender";
+        constexpr auto ASSAULT_SERVICE = "AssaultService";
+        constexpr auto BASE_PATROL = "BasePatrol";
+        constexpr auto CARRIER = "Carrier";
+        constexpr auto COMMANDER = "Commander";
+        constexpr auto DROPSHIP_REQUEST = "DropshipRequest";
+        constexpr auto LANDING_PAD = "LandingPad";
+        constexpr auto PATROL = "Patrol";
+        constexpr auto TURRET = "Turret";
+        constexpr auto LIEUTENANT = "Lieutenant";
+    }
+    
     struct KeyValuePair
     {
         const char* key;
@@ -81,6 +98,7 @@ namespace GameConfig
     constexpr auto AIP_STRING = "options.instant.string0";
     constexpr auto COMMANDER_ENABLED = "options.instant.aiCommander";
     constexpr auto RECYCLER_ODF = "options.instant.string1";
+    constexpr auto CPU_RECYCLER_ODF = "options.instant.string2";
 
     constexpr auto MPI_DIFFICULTY = "network.session.ivar127";
     constexpr auto MPI_INTRO_SCENE_ENABLED = "network.session.ivar126";
@@ -89,10 +107,22 @@ namespace GameConfig
     constexpr auto MPI_SNIPEABLE_ENEMIES = "network.session.ivar123";
     constexpr auto MPI_PLAYER_COUNT = "network.session.ivar64";
     constexpr auto MPI_CPU_TEAM_RACE = "network.session.ivar13";
+    constexpr auto MPI_CPU_RECYCLER_ODF = "network.session.ivar12";
 
     constexpr auto OPTIONS_AUDIO_MUSIC = "options.audio.music";
     constexpr auto OPTIONS_PLAY_SUBTITLES = "options.play.subtitles";
 
+    constexpr char AIP_TYPE_STRINGS[7] =
+    {
+        '0',
+        '1',
+        '2',
+        '3',
+        'a',
+        'l',
+        's'
+    };
+    
     constexpr const char* BANE_MAPS[6] =
     {
         "dunesi.trn",
@@ -150,7 +180,7 @@ namespace GameConfig
         {"LightDropship", "fvsent_x"},
         {"TurretDropship", "fvturr_x"}
     };
-    
+        
     inline const char* GetPortalUnit(const std::string& name)
     {
         for (const auto& entry : PortalUnits)

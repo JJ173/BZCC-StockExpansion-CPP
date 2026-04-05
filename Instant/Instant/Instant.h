@@ -50,9 +50,9 @@ class Instant : public DLLBase
     int first_int_;
     int mission_time_;
     int elapsed_game_time_;
-    int player_team_;
-    int strat_team_;
-    int comp_team_;
+    int player_team_ = 1;
+    int strat_team_ = 1;
+    int comp_team_ = 6;
     int difficulty_;
     int intro_delay_;
     int player_count_;
@@ -74,6 +74,7 @@ class Instant : public DLLBase
     char human_race_char_;
     char cpu_race_char_;
     const char* map_name_;
+    const char* cpu_recycler_odf_;
 
     float first_float_;
     float team_pos_[3 * (MAX_TEAMS + 1)];
@@ -219,5 +220,6 @@ public:
     // Handle delegate for PreOrdnanceHit.
     void PreOrdnanceHit(Handle shooter_handle, Handle victim_handle, int ordnance_team,
                         const char* ordnance_odf) override;
-    void AddObject(const Handle new_handle) override;
+    void AddObject(Handle new_handle) override;
+    void DeleteObject(Handle dead_handle) override;
 };
