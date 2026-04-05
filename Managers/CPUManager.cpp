@@ -65,67 +65,106 @@ void CPUManager::HandleCommander(DispatchUnit* commander, const CPUTeam* cpu_tea
     {
         if (GetHealth(commander->handle) < 0.3f || GetAmmo(commander->handle) < 0.15f)
         {
-            if (IsAround(cpu_team->service_bay))
+            if (const Handle service_bay = GetObjectByTeamSlot(cpu_team->team, DLL_TEAM_SLOT_SERVICE) != 0)
             {
-                Service(commander->handle, cpu_team->service_bay, 0);
+                Service(commander->handle, service_bay, 0);
                 commander->command = CMD_SERVICE;
+                return;
             }
-            else if (const Handle nearest_pod = FindNearestServicePod(commander->handle) != 0)
+
+            if (const Handle nearest_pod = FindNearestServicePod(commander->handle) != 0)
             {
                 Goto(commander->handle, nearest_pod, 0);
                 commander->command = CMD_SERVICE;
+                return;
+            }
+        }
+
+        // Scan for a nearby enemy and engage if they are within distance of attack.
+        if (commander->command != CMD_ATTACK)
+        {
+            const Handle nearest_enemy = GetNearestEnemy(commander->handle, true, false, 250.0f);
+            if (IsAround(nearest_enemy))
+            {
+                Attack(commander->handle, nearest_enemy, 0);
+                commander->command = CMD_ATTACK;
+                return;
             }
         }
     }
 
+    // If we're not idle, then bail.
     if (!IsIdle(commander->handle))
     {
         return;
     }
 
-    // Scan for a nearby enemy and engage if they are within distance of attack.
-    const Handle nearest_enemy = GetNearestEnemy(commander->handle, true, false, 250.0f);
-    if (IsAround(nearest_enemy))
+    // Add some randomization for patrol points. Could be a list of:
+    // 1 - Find random pools.
+    // 2 - Find random friendly base.
+    // 3 - Find random enemy base.
+    // 4 - Find random scrap (only possible if scrap exists, so keep it last).
+    int task_choice;
+
+    if (map_scrap_.empty())
     {
-        Attack(commander->handle, nearest_enemy, 0);
-        commander->command = CMD_ATTACK;
-        return;
+        task_choice = Helpers::GetRandomInt(2);
+    }
+    else
+    {
+        task_choice = Helpers::GetRandomInt(3);
     }
 
-    // Find a position near a random pool on the map to patrol near.
-    // TODO: Add some randomization for patrol points. Could be a list of:
-    // 1 - Find random pools.
-    // 2 - Find random scrap.
-    // 3 - Find random friendly unit.
-    // 4 - Find random enemy unit.
-    // 5 - Find random enemy base.
-    const int task_choice = Helpers::GetRandomInt(5);
+    int random_index;
+    Handle target_handle = 0;
 
     switch (task_choice)
     {
     case 0:
         {
-            const int random_index = Helpers::GetRandomInt(static_cast<float>(std::size(map_pools_) - 1));
-            const Handle pool = map_pools_[random_index];
-            Goto(commander->handle, pool, 0);
-            commander->command = CMD_PATROL;
+            if (map_pools_.empty())
+            {
+                return;
+            }
+
+            random_index = Helpers::GetRandomInt(static_cast<float>(std::size(map_pools_) - 1));
+            target_handle = map_pools_[random_index];
             break;
         }
     case 1:
         {
-            const int random_index = Helpers::GetRandomInt(static_cast<float>(std::size(map_scrap_) - 1));
-            const Handle scrap = map_scrap_[random_index];
-            Goto(commander->handle, scrap, 0);
-            commander->command = CMD_PATROL;
+            if (cpu_team->buildings.empty())
+            {
+                return;
+            }
+
+            random_index = Helpers::GetRandomInt(static_cast<float>(std::size(cpu_team->buildings) - 1));
+            target_handle = cpu_team->buildings[random_index];
             break;
         }
     case 2:
-        break;
+        {
+            if (player_buildings_.empty())
+            {
+                return;
+            }
+
+            random_index = Helpers::GetRandomInt(static_cast<float>(std::size(player_buildings_) - 1));
+            target_handle = player_buildings_[random_index];
+            break;
+        }
     case 3:
-        break;
-    case 4:
+        {
+            random_index = Helpers::GetRandomInt(static_cast<float>(std::size(map_scrap_) - 1));
+            target_handle = map_scrap_[random_index];
+            break;
+        }
+    default:
         break;
     }
+
+    Goto(commander->handle, GetPositionNear(GetPosition(target_handle), 30.0f, 50.0f), 0);
+    commander->command = CMD_PATROL;
 }
 
 // ==================================================
@@ -232,6 +271,13 @@ void CPUManager::RegisterNewTeam(const int team, const char faction, const char*
 // ==================================================
 void CPUManager::Execute(int mission_turn)
 {
+    for (CPUTeam& team_info : teams_)
+    {
+        if (team_info.commander_enabled)
+        {
+            HandleCommander(&team_info.commander, &team_info);
+        }
+    }
 }
 
 // ==================================================
@@ -258,31 +304,7 @@ void CPUManager::AddTeamObject(const Handle team_object, const int mission_turn,
 
     if (IsBuilding(team_object))
     {
-        if (strcmp(building_class, "CLASS_RECYCLER") == 0)
-        {
-            cpu_team->recycler = team_object;
-            return;
-        }
-
-        if (strcmp(building_class, "CLASS_FACTORY") == 0)
-        {
-            cpu_team->factory = team_object;
-            return;
-        }
-
-        if (strcmp(building_class, "CLASS_ARMORY") == 0)
-        {
-            cpu_team->armory = team_object;
-            return;
-        }
-
-        if (strcmp(building_class, "CLASS_SUPPLYDEPOT") == 0)
-        {
-            cpu_team->service_bay = team_object;
-            return;
-        }
-
-        // Don't proceed further if this is a random building that we don't care about.
+        cpu_team->buildings.push_back(team_object);
         return;
     }
 
@@ -297,15 +319,9 @@ void CPUManager::AddTeamObject(const Handle team_object, const int mission_turn,
         return;
     }
 
-    if (strcmp(ai_unit_type, GameConfig::AIUnitType::COMMANDER) == 0)
-    {
-        SetObjectiveName(team_object, cpu_team->name.c_str());
-        cpu_team->commander = team_object;
-    }
-
     // Create a new dispatch object and get it ready for processing.
     DispatchUnit dispatch_unit;
-    dispatch_unit.handle = team;
+    dispatch_unit.handle = team_object;
     dispatch_unit.birth_turn = mission_turn;
     dispatch_unit.team = team;
     dispatch_unit.type = ai_unit_type;
@@ -313,7 +329,18 @@ void CPUManager::AddTeamObject(const Handle team_object, const int mission_turn,
     dispatch_unit.command = CMD_NONE;
     dispatch_unit.max_health = GetMaxHealth(team_object);
     dispatch_unit.max_ammo = GetMaxAmmo(team_object);
-    cpu_team->dispatch_units.push_back(dispatch_unit);
+    dispatch_unit.dispatch_point = {0, 0, 0};
+    dispatch_unit.target = 0;
+
+    if (strcmp(ai_unit_type, GameConfig::AIUnitType::COMMANDER) == 0)
+    {
+        SetObjectiveName(team_object, cpu_team->name);
+        cpu_team->commander = dispatch_unit;
+    }
+    else
+    {
+        cpu_team->dispatch_units.push_back(dispatch_unit);
+    }
 }
 
 void CPUManager::RemoveTeamObject(const Handle team_object)

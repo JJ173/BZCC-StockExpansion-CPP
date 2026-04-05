@@ -20,40 +20,35 @@ class CPUManager
         int max_ammo;
         
         Vector dispatch_point;
-        std::string type;
+        const char* type;
     };
     
     struct Lieutenant
     {
         Handle handle;
-        std::string name;
+        const char* name;
     };
     
     struct CPUTeam
     {
-        std::string name;
-        std::string aip_string;
-        std::string spawn_path;
-        
-        int team;
-        int taunt_cooldown;
-        
-        char faction;
-        
         bool commander_enabled;
         bool taunt_setup_done;
         bool is_campaign;
         bool in_siege_mode;
-
-        Handle commander;
-        Handle recycler;
-        Handle factory;
-        Handle armory;
-        Handle service_bay;
         
-        std::vector<Handle> gun_towers;
+        int team;
+        int taunt_cooldown;
+        DispatchUnit commander;
+        
+        char faction;
+        const char* name;
+        const char* aip_string;
+        const char* spawn_path;
+        
         std::vector<Lieutenant> lieutenants;
         std::vector<std::string> lieutenants_names;
+        std::vector<Handle> gun_towers;
+        std::vector<Handle> buildings;
         
         std::vector<DispatchUnit> dispatch_units;
     };
@@ -62,7 +57,9 @@ class CPUManager
     std::vector<Handle> map_pools_;
     std::vector<Handle> map_scrap_;
     std::vector<Handle> service_pods_;
+    std::vector<Handle> player_buildings_;
 
+    void HandleCommander(DispatchUnit* commander, const CPUTeam* cpu_team);
     Handle FindNearestServicePod(Handle handle);
     CPUTeam* GetCPUTeam(int team);
     static void SetCPUAIPlan(GameConfig::AIPType type, const CPUTeam* cpu_team, char player_faction);

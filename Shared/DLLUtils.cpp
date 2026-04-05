@@ -46,7 +46,7 @@ int dll_utils::count_allied_players(const int team)
 	return count;
 }
 
-std::string dll_utils::get_checked_network_svar(const size_t svar, const NETWORK_LIST_TYPE list_type)
+const char* dll_utils::get_checked_network_svar(const size_t svar, const NETWORK_LIST_TYPE list_type)
 {
 	static constexpr auto k_svar_prefix = "network.session.svar";
 	
@@ -55,19 +55,19 @@ std::string dll_utils::get_checked_network_svar(const size_t svar, const NETWORK
 	
 	if (svar_value.empty())
 	{
-		return {};
+		return nullptr;
 	}
 
 	const auto list_count = GetNetworkListCount(list_type);
 	
 	for (size_t i = 0; i < list_count; ++i)
 	{
-		const std::string list_item = GetNetworkListItem(list_type, i);
+		const char* list_item = GetNetworkListItem(list_type, i);
 		if (list_item == svar_value)
 		{
 			return list_item;
 		}
 	}
 	
-	return {};
+	return nullptr;
 }

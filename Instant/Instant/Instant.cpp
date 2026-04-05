@@ -844,6 +844,7 @@ void Instant::Execute()
     subtitles_.Execute();
     animal_manager_.Execute(mission_time_);
     carrier_manager_.Execute(mission_time_);
+    cpu_manager_.Execute(mission_time_);
 
     if (!start_done_)
     {
@@ -955,7 +956,7 @@ void Instant::AddObject(const Handle new_handle)
         carrier_manager_.RegisterDropshipRequest(new_handle, team,mission_time_ + SecondsToTurns(GameConfig::GetDropshipCooldownRequestTime(difficulty_)));
     }
             
-    if (team == comp_team_)
+    if (team == comp_team_ && strcmp(ai_unit_type, GameConfig::AIUnitType::CARRIER) != 0)
     {
         cpu_manager_.AddTeamObject(new_handle, mission_time_, team, ai_unit_type);
     }
