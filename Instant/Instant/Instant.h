@@ -58,7 +58,6 @@ class Instant : public DLLBase
     int player_count_;
     int vsr_taunt_easter_egg_time_;
     int cpu_scrap_amount_;
-    int cpu_scrap_delay_;
     int next_cpu_scrap_time_;
     int music_option_value_;
     int intro_audio_;
@@ -77,6 +76,7 @@ class Instant : public DLLBase
     const char* cpu_recycler_odf_;
 
     float first_float_;
+    float cpu_scrap_delay_;
     float team_pos_[3 * (MAX_TEAMS + 1)];
     float intro_music_volume_ = 1.0f;
     float last_float_;
@@ -92,6 +92,8 @@ class Instant : public DLLBase
     bool intro_cutscene_enabled_;
     bool wildlife_enabled_;
     bool snipeable_enemies_;
+    bool pilot_mode_enabled_;
+    bool infantry_enabled_;
     bool dropship_takeoff_check_;
     bool dropship_takeoff_dialog_played_;
     bool dropship_1_removed_;

@@ -17,11 +17,12 @@ namespace GameConfig
         constexpr auto BASE_PATROL = "BasePatrol";
         constexpr auto CARRIER = "Carrier";
         constexpr auto COMMANDER = "Commander";
+        constexpr auto DEMOLISHER = "Demolisher";
         constexpr auto DROPSHIP_REQUEST = "DropshipRequest";
         constexpr auto LANDING_PAD = "LandingPad";
+        constexpr auto LIEUTENANT = "Lieutenant";
         constexpr auto PATROL = "Patrol";
         constexpr auto TURRET = "Turret";
-        constexpr auto LIEUTENANT = "Lieutenant";
     }
     
     struct KeyValuePair
@@ -99,12 +100,16 @@ namespace GameConfig
     constexpr auto COMMANDER_ENABLED = "options.instant.aiCommander";
     constexpr auto RECYCLER_ODF = "options.instant.string1";
     constexpr auto CPU_RECYCLER_ODF = "options.instant.string2";
+    constexpr auto PILOT_MODE_ENABLED = "options.instant.pilotMode";
+    constexpr auto INFANTRY_ENABLED = "options.instant.infantry";
 
     constexpr auto MPI_DIFFICULTY = "network.session.ivar127";
     constexpr auto MPI_INTRO_SCENE_ENABLED = "network.session.ivar126";
     constexpr auto MPI_WILDLIFE_ENABLED = "network.session.ivar125";
     constexpr auto MPI_COMMANDER_ENABLED = "network.session.ivar124";
     constexpr auto MPI_SNIPEABLE_ENEMIES = "network.session.ivar123";
+    constexpr auto MPI_PILOT_MODE_ENABLED = "network.session.ivar122";
+    constexpr auto MPI_INFANTRY_ENABLED = "network.session.ivar121";
     constexpr auto MPI_PLAYER_COUNT = "network.session.ivar64";
     constexpr auto MPI_CPU_TEAM_RACE = "network.session.ivar13";
     constexpr auto MPI_CPU_RECYCLER_ODF = "network.session.ivar12";
