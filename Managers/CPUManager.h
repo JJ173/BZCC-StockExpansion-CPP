@@ -14,12 +14,13 @@ class CPUManager
         Turret,
         AntiAir,
         Patrol,
+        BasePatrol,
         Demolisher,
         AssaultService,
         AssaultDefender,
         ApcPatrol
     };
-    
+        
     struct DispatchUnit
     {
         Handle handle;
@@ -31,7 +32,14 @@ class CPUManager
         int dispatch_delay;
         int max_health;
         int max_ammo;
+        int bordem_check_turn;
         
+        // Add an engage range for checks as it seems "GetTarget" ends up being infinite for AI? Seems odd.
+        float engage_range = 0.0f;
+        
+        // Distance that the turret can be from its dispatch point.      
+        float distance_allowance = 100.0f;
+                
         Vector dispatch_point;
         DispatchType type = DispatchType::Unknown;
     };
@@ -48,11 +56,10 @@ class CPUManager
         bool taunt_setup_done;
         bool is_campaign;
         bool in_siege_mode;
-        
-        float siege_distance;
-        
+                
         int team;
         int taunt_cooldown;
+        int siege_mode_cooldown;
         DispatchUnit commander;
         
         char faction;
@@ -67,7 +74,14 @@ class CPUManager
         std::vector<Handle> buildings;
         
         std::vector<DispatchUnit> dispatch_units;
+        std::unordered_map<Handle, size_t> dispatch_by_handle;
+        
+        size_t next_patrol_path_index = 0; // Track the next path for "Patrol" units
+        size_t next_base_patrol_path_index = 0; // Track the next path for "BasePatrol" units
     };
+    
+    int mission_turn_ = 0;
+    float siege_distance_;
     
     std::vector<CPUTeam> teams_;
     std::vector<Handle> map_pools_;
@@ -76,7 +90,13 @@ class CPUManager
     std::vector<Handle> player_buildings_;
     std::vector<Handle> player_aircraft_;
     
+    // TODO: Change this to a team specific path selector if we ever plan to support more than one AIP.
+    std::vector<std::string> map_patrol_paths_;
+    std::vector<std::string> base_patrol_paths_;
+    
+    static DispatchUnit* GetDispatchByHandle(CPUTeam* cpu_team, Handle handle);
     static DispatchType GetDispatchType(const char* ai_unit_type);
+    
     static bool IsCommanderType(const char* ai_unit_type);
     static bool IsLieutenantType(const char* ai_unit_type);
     
@@ -88,19 +108,21 @@ class CPUManager
     
     void HandleCommander(DispatchUnit* commander, const CPUTeam* cpu_team) const;
     void HandleLieutenant(DispatchUnit* lieutenant, const CPUTeam* cpu_team) const;
-    void DispatchTurret(DispatchUnit* turret, const CPUTeam* cpu_team) const;
-    void DispatchPatrol(DispatchUnit* patrol, const CPUTeam* cpu_team) const;
-    void DispatchDemolisher(DispatchUnit* demolisher, const CPUTeam* cpu_team) const;
+    void DispatchTurret(DispatchUnit* turret) const;
+    void DispatchPatrol(DispatchUnit* patrol, CPUTeam* cpu_team) const;
+    void DispatchBasePatrol(DispatchUnit* base_patrol, CPUTeam* cpu_team) const;
+    void DispatchDemolisher(const DispatchUnit* demolisher, const CPUTeam* cpu_team) const;
     void DispatchAntiAir(DispatchUnit* anti_air, const CPUTeam* cpu_team) const;
     void DispatchSupport(DispatchUnit* support, const CPUTeam* cpu_team) const;
     void DispatchDefender(DispatchUnit* defender, const CPUTeam* cpu_team) const;
     void DispatchAPCPatrol(DispatchUnit* apc_patrol, const CPUTeam* cpu_team) const;
     
 public:
-    void RegisterNewTeam(int team, char faction, const char* spawn_path, bool is_campaign, char player_faction, float siege_distance);
+    void Init(int difficulty);
+    void RegisterNewTeam(int team, char faction, const char* spawn_path, bool is_campaign, char player_faction);
     void Execute(int mission_turn);
     
-    void AddTeamObject(Handle team_object, int mission_turn, int team, const char* ai_unit_type);
+    void AddTeamObject(Handle team_object, int team, const char* ai_unit_type, const char* obj_odf);
     void RemoveTeamObject(Handle team_object);
     
     void AddMapPool(Handle map_pool);
@@ -110,4 +132,6 @@ public:
     void RemoveServicePod(Handle service_pod);
     void AddPlayerBuilding(Handle building);
     void RemovePlayerBuilding(Handle building);
+    
+    void TurretShot(Handle turret, int team);
 };

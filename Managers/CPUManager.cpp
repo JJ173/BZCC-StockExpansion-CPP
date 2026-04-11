@@ -1,8 +1,8 @@
 ﻿#include "CPUManager.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cstdio>
+#include <iterator>
 
 #include "../shared/DLLUtils.h"
 #include "../Utilities/Helpers.h"
@@ -22,7 +22,6 @@ namespace
         return true;
     }
 }
-
 
 // ==================================================
 // Utilities
@@ -68,6 +67,10 @@ CPUManager::DispatchType CPUManager::GetDispatchType(const char* ai_unit_type)
     if (std::strcmp(ai_unit_type, GameConfig::AIUnitType::PATROL) == 0)
     {
         return DispatchType::Patrol;
+    }
+    if (std::strcmp(ai_unit_type, GameConfig::AIUnitType::BASE_PATROL) == 0)
+    {
+        return DispatchType::BasePatrol;
     }
     if (std::strcmp(ai_unit_type, GameConfig::AIUnitType::DEMOLISHER) == 0)
     {
@@ -122,19 +125,32 @@ Handle CPUManager::FindNearestServicePod(Handle handle) const
     return nearest_pod;
 }
 
+CPUManager::DispatchUnit* CPUManager::GetDispatchByHandle(CPUTeam* cpu_team, const Handle handle)
+{
+    if (cpu_team == nullptr)
+    {
+        return nullptr;
+    }
+
+    const auto it = cpu_team->dispatch_by_handle.find(handle);
+    if (it != cpu_team->dispatch_by_handle.end())
+    {
+        return &cpu_team->dispatch_units[it->second];
+    }
+
+    return nullptr;
+}
+
 // ==================================================
 // Dispatch handlers
 // ==================================================
 void CPUManager::HandleCommander(DispatchUnit* commander, const CPUTeam* cpu_team) const
 {
-    // Check to see if commander is valid.
     if (commander == nullptr || commander->handle == 0)
     {
         return;
     }
 
-    // First, do a health and ammo check. If we're below a threshold, find a pod on the map that's closest to us and move to it.
-    // If there are no pods, or buildings to heal with, then just go gung-ho and attack until death. No point in wasting time.
     if (commander->command != CMD_SERVICE)
     {
         if (GetHealth(commander->handle) < 0.3f || GetAmmo(commander->handle) < 0.15f)
@@ -169,25 +185,23 @@ void CPUManager::HandleCommander(DispatchUnit* commander, const CPUTeam* cpu_tea
         }
     }
 
-    // If we're not idle, then bail.
     if (!IsIdle(commander->handle))
     {
         return;
     }
 
-    // Add some randomization for patrol points. Could be a list of:
-    // 1 - Find random pools.
-    // 2 - Find random friendly base.
-    // 3 - Find random scrap (only possible if scrap exists, so keep it last).
+    // 0: Pools
+    // 1: Scrap 
+    // 2: Friendly base.
     int task_choice;
 
     if (map_scrap_.empty())
     {
-        task_choice = Helpers::GetRandomInt(2);
+        task_choice = Helpers::GetRandomInt(1);
     }
     else
     {
-        task_choice = Helpers::GetRandomInt(3);
+        task_choice = Helpers::GetRandomInt(2);
     }
 
     int random_index;
@@ -208,6 +222,17 @@ void CPUManager::HandleCommander(DispatchUnit* commander, const CPUTeam* cpu_tea
         }
     case 1:
         {
+            if (map_scrap_.empty())
+            {
+                return;
+            }
+
+            random_index = Helpers::GetRandomInt(static_cast<float>(std::size(map_scrap_) - 1));
+            target_handle = map_scrap_[random_index];
+            break;
+        }
+    case 2:
+        {
             if (cpu_team->buildings.empty())
             {
                 return;
@@ -217,14 +242,10 @@ void CPUManager::HandleCommander(DispatchUnit* commander, const CPUTeam* cpu_tea
             target_handle = cpu_team->buildings[random_index];
             break;
         }
-    case 2:
+    default:
         {
-            random_index = Helpers::GetRandomInt(static_cast<float>(std::size(map_scrap_) - 1));
-            target_handle = map_scrap_[random_index];
             break;
         }
-    default:
-        break;
     }
 
     if (target_handle == 0)
@@ -240,15 +261,453 @@ void CPUManager::HandleLieutenant(DispatchUnit* lieutenant, const CPUTeam* cpu_t
 {
 }
 
-void CPUManager::DispatchTurret(DispatchUnit* turret, const CPUTeam* cpu_team) const
+void CPUManager::DispatchTurret(DispatchUnit* turret) const
 {
+    if (turret == nullptr || turret->handle == 0)
+    {
+        return;
+    }
+
+    if (!IsIdle(turret->handle) || !Helpers::IsVectorZero(turret->dispatch_point))
+    {
+        // Check if the turret has stopped prematurely once it has been shot, see if it has a target, and then tell it to move again.
+        if (turret->command == CMD_DEFEND)
+        {
+            // Try and find the target handle.
+            Handle target_handle = GetTarget(turret->handle);
+
+            // Check if we are engaging a valid target.
+            if (target_handle != 0 && GetDistance(turret->handle, target_handle) < turret->engage_range)
+            {
+                return;
+            }
+
+            // Check the distance from the dispatch point.
+            const Vector current_pos = GetPosition(turret->handle);
+            const Vector diff = {
+                current_pos.x - turret->dispatch_point.x,
+                0.0f, // Ignore height for this check
+                current_pos.z - turret->dispatch_point.z
+            };
+            const float dist_sq = diff.x * diff.x + diff.z * diff.z;
+
+            if (dist_sq < turret->distance_allowance * turret->distance_allowance)
+            {
+                Stop(turret->handle, 0);
+                turret->command = CMD_DONE;
+            }
+            else
+            {
+                Goto(turret->handle, turret->dispatch_point, 0);
+                turret->command = CMD_GO;
+            }
+        }
+
+        return;
+    }
+
+    // Thinking here, just to note down, that I have the turrets act similar to the Commanders, but with a different approach.
+    // If they are shot, we should have them stop and engage the target that shot them which can be registered in another method.
+    // What we need to do though, is check the distance of the target, and how long we are idle for. Perhaps a "Last shot" timer?
+    // Give them a choice to pick between pools, and scrap, since we care for map control.
+
+    // 0: Pools
+    // 1: Scrap 
+    const int task_choice = Helpers::GetRandomInt(1);
+
+    // 0: Closest
+    // 1: Random
+    // 2: Furthest
+    const int task_distance = Helpers::GetRandomInt(2);
+
+    switch (task_choice)
+    {
+    case 0:
+        {
+            if (map_pools_.empty())
+            {
+                return;
+            }
+
+            if (map_pools_.size() < 2)
+            {
+                return;
+            }
+
+            std::vector<Handle> new_map_pools;
+            new_map_pools.reserve(map_pools_.size() - 2);
+            std::copy(map_pools_.begin() + 1, map_pools_.end() - 1, std::back_inserter(new_map_pools));
+
+            if (new_map_pools.empty())
+            {
+                return;
+            }
+
+            Vector turret_dispatch_point;
+
+            switch (task_distance)
+            {
+            case 0: // Closest
+                {
+                    float nearest_distance = std::numeric_limits<float>::max();
+                    Handle nearest_pool = 0;
+
+                    for (Handle pool : new_map_pools)
+                    {
+                        const float distance = GetDistance(turret->handle, pool);
+
+                        if (distance < nearest_distance)
+                        {
+                            nearest_pool = pool;
+                            nearest_distance = distance;
+                        }
+                    }
+
+                    if (nearest_pool == 0)
+                    {
+                        return;
+                    }
+
+                    turret_dispatch_point = GetPositionNear(GetPosition(nearest_pool), 30.0f, 50.0f);
+                    break;
+                }
+            case 1: // Random
+                {
+                    const int random_index = Helpers::GetRandomInt(static_cast<float>(new_map_pools.size() - 1));
+                    turret_dispatch_point = GetPositionNear(GetPosition(new_map_pools[random_index]), 30.0f, 50.0f);
+                    break;
+                }
+            case 2: // Furthest
+                {
+                    float furthest_distance = 0.0f;
+                    Handle furthest_pool = 0;
+
+                    for (Handle pool : new_map_pools)
+                    {
+                        const float distance = GetDistance(turret->handle, pool);
+
+                        if (distance > furthest_distance)
+                        {
+                            furthest_pool = pool;
+                            furthest_distance = distance;
+                        }
+                    }
+
+                    if (furthest_pool == 0)
+                    {
+                        return;
+                    }
+
+                    turret_dispatch_point = GetPositionNear(GetPosition(furthest_pool), 30.0f, 50.0f);
+                    break;
+                }
+            default:
+                {
+                    break;
+                }
+            }
+
+            Goto(turret->handle, turret_dispatch_point, 0);
+            turret->dispatch_point = turret_dispatch_point;
+            turret->command = CMD_GO;
+            break;
+        }
+    case 1:
+        {
+            if (map_scrap_.empty())
+            {
+                return;
+            }
+
+            Vector turret_dispatch_point;
+
+            switch (task_distance)
+            {
+            case 0: // Closest
+                {
+                    float nearest_distance = std::numeric_limits<float>::max();
+                    Handle nearest_scrap = 0;
+
+                    for (Handle scrap : map_scrap_)
+                    {
+                        const float distance = GetDistance(turret->handle, scrap);
+
+                        if (distance < nearest_distance)
+                        {
+                            nearest_scrap = scrap;
+                            nearest_distance = distance;
+                        }
+                    }
+
+                    if (nearest_scrap == 0)
+                    {
+                        return;
+                    }
+
+                    turret_dispatch_point = GetPositionNear(GetPosition(nearest_scrap), 25.0f, 30.0f);
+                    break;
+                }
+            case 1: // Random
+                {
+                    const int random_index = Helpers::GetRandomInt(static_cast<float>(map_scrap_.size() - 1));
+                    turret_dispatch_point = GetPositionNear(GetPosition(map_scrap_[random_index]), 25.0f, 30.0f);
+                    break;
+                }
+            case 2: // Furthest
+                {
+                    float furthest_distance = 0.0f;
+                    Handle furthest_scrap = 0;
+
+                    for (Handle scrap : map_scrap_)
+                    {
+                        const float distance = GetDistance(turret->handle, scrap);
+
+                        if (distance > furthest_distance)
+                        {
+                            furthest_scrap = scrap;
+                            furthest_distance = distance;
+                        }
+                    }
+
+                    if (furthest_scrap == 0)
+                    {
+                        return;
+                    }
+
+                    turret_dispatch_point = GetPositionNear(GetPosition(furthest_scrap), 25.0f, 30.0f);
+                    break;
+                }
+            default:
+                {
+                    break;
+                }
+            }
+
+            Goto(turret->handle, turret_dispatch_point, 0);
+            turret->dispatch_point = turret_dispatch_point;
+            turret->command = CMD_GO;
+            break;
+        }
+    default:
+        {
+            break;
+        }
+    }
 }
 
-void CPUManager::DispatchPatrol(DispatchUnit* patrol, const CPUTeam* cpu_team) const
+void CPUManager::DispatchPatrol(DispatchUnit* patrol, CPUTeam* cpu_team) const
 {
+    if (patrol == nullptr || patrol->handle == 0 || !IsIdle(patrol->handle))
+    {
+        return;
+    }
+    
+    if (!map_patrol_paths_.empty())
+    {
+        // Use the index to get the next path in the queue
+        const std::string& patrol_path = map_patrol_paths_[cpu_team->next_patrol_path_index];
+        
+        Patrol(patrol->handle, patrol_path.c_str());
+        patrol->command = CMD_PATROL;
+
+        // Increment and wrap around the index
+        cpu_team->next_patrol_path_index = (cpu_team->next_patrol_path_index + 1) % map_patrol_paths_.size();
+        return;
+    }
+
+    // Fallback method. If the path list is empty, we can try other patrol strats. 
+    // Have this unit move between random friendly buildings and map resources.
+
+    // Ensure the pools and buildings are populated before trying to delegate a task to this unit.
+    if (map_pools_.empty() && cpu_team->buildings.empty())
+    {
+        // If both are empty, we'll need to do some default behaviour.
+        return;
+    }
+
+    // 0: Buildings
+    // 1: Map Resources
+    const int task_choice = Helpers::GetRandomInt(1);
+
+    // 0: Closest
+    // 1: Random
+    // 2: Furthest
+    const int task_distance = Helpers::GetRandomInt(2);
+
+    switch (task_choice)
+    {
+    case 0:
+        {
+            if (cpu_team->buildings.empty())
+            {
+                return;
+            }
+
+            Vector patrol_dispatch_point;
+
+            switch (task_distance)
+            {
+            case 0: // Closest
+                {
+                    Handle nearest_building = 0;
+                    float nearest_distance = std::numeric_limits<float>::max();
+
+                    for (Handle building : cpu_team->buildings)
+                    {
+                        const float distance = GetDistance(patrol->handle, building);
+
+                        if (distance < nearest_distance)
+                        {
+                            nearest_building = building;
+                            nearest_distance = distance;
+                        }
+                    }
+
+                    if (nearest_building == 0)
+                    {
+                        return;
+                    }
+
+                    patrol_dispatch_point = GetPositionNear(GetPosition(nearest_building), 50.0f, 75.0f);
+                    break;
+                }
+            case 1: // Random
+                {
+                    const int random_index = Helpers::GetRandomInt(
+                        static_cast<float>(cpu_team->buildings.size()) - 1.0f);
+                    patrol_dispatch_point = GetPositionNear(GetPosition(cpu_team->buildings[random_index]), 50.0f,
+                                                            75.0f);
+                    break;
+                }
+            case 2: // Furthest
+                {
+                    Handle furthest_building = 0;
+                    float furthest_distance = 0.0f;
+
+                    for (Handle building : cpu_team->buildings)
+                    {
+                        const float distance = GetDistance(patrol->handle, building);
+                        if (distance > furthest_distance)
+                        {
+                            furthest_building = building;
+                            furthest_distance = distance;
+                        }
+                    }
+
+                    patrol_dispatch_point = GetPositionNear(GetPosition(furthest_building), 50.0f, 75.0f);
+                    break;
+                }
+            default:
+                break;
+            }
+
+            Goto(patrol->handle, patrol_dispatch_point, 0);
+            patrol->dispatch_point = patrol_dispatch_point;
+            patrol->command = CMD_GO;
+
+            break;
+        }
+    case 1:
+        {
+            if (map_pools_.empty())
+            {
+                return;
+            }
+
+            Vector patrol_dispatch_point;
+
+            // Random pool. Find one from the list depending on the chosen distance and find a random position near it.
+            switch (task_distance)
+            {
+            case 0: // Closest
+                {
+                    Handle nearest_pool = 0;
+                    float nearest_distance = std::numeric_limits<float>::max();
+
+                    for (Handle pool : map_pools_)
+                    {
+                        const float distance = GetDistance(patrol->handle, pool);
+                        if (distance < nearest_distance)
+                        {
+                            nearest_pool = pool;
+                            nearest_distance = distance;
+                        }
+                    }
+
+                    if (nearest_pool == 0)
+                    {
+                        return;
+                    }
+
+                    patrol_dispatch_point = GetPositionNear(GetPosition(nearest_pool), 50.0f, 75.0f);
+                    break;
+                }
+            case 1: // Random
+                {
+                    const int random_index = Helpers::GetRandomInt(static_cast<float>(map_pools_.size() - 1));
+                    patrol_dispatch_point = GetPositionNear(GetPosition(map_pools_[random_index]), 50.0f, 75.0f);
+                    break;
+                }
+            case 2: // Furthest
+                {
+                    Handle furthest_pool = 0;
+                    float furthest_distance = 0.0f;
+                    for (Handle pool : map_pools_)
+                    {
+                        const float distance = GetDistance(patrol->handle, pool);
+                        if (distance > furthest_distance)
+                        {
+                            furthest_pool = pool;
+                            furthest_distance = distance;
+                        }
+                    }
+
+                    if (furthest_pool == 0)
+                    {
+                        return;
+                    }
+
+                    patrol_dispatch_point = GetPositionNear(GetPosition(furthest_pool), 50.0f, 75.0f);
+                    break;
+                }
+            default:
+                break;
+            }
+
+            Goto(patrol->handle, patrol_dispatch_point, 0);
+            patrol->dispatch_point = patrol_dispatch_point;
+            patrol->command = CMD_GO;
+            break;
+        }
+    default:
+        {
+            break;
+        }
+    }
 }
 
-void CPUManager::DispatchDemolisher(DispatchUnit* demolisher, const CPUTeam* cpu_team) const
+void CPUManager::DispatchBasePatrol(DispatchUnit* base_patrol, CPUTeam* cpu_team) const
+{
+    if (base_patrol == nullptr || base_patrol->handle == 0 || !IsIdle(base_patrol->handle))
+    {
+        return;
+    }
+    
+    if (!base_patrol_paths_.empty())
+    {
+        // Use the index to get the next path in the queue
+        const std::string& patrol_path = base_patrol_paths_[cpu_team->next_base_patrol_path_index];
+        
+        Patrol(base_patrol->handle, patrol_path.c_str());
+        base_patrol->command = CMD_PATROL;
+
+        // Increment and wrap around the index
+        cpu_team->next_base_patrol_path_index = (cpu_team->next_base_patrol_path_index + 1) % map_patrol_paths_.size();
+        return;
+    }
+}
+
+void CPUManager::DispatchDemolisher(const DispatchUnit* demolisher, const CPUTeam* cpu_team) const
 {
     if (demolisher == nullptr || demolisher->handle == 0)
     {
@@ -260,17 +719,14 @@ void CPUManager::DispatchDemolisher(DispatchUnit* demolisher, const CPUTeam* cpu
         return;
     }
 
-    const Handle demolish_target = player_buildings_[Helpers::GetRandomInt(static_cast<float>(player_buildings_.size()))];
+    const int index = Helpers::GetRandomInt(static_cast<float>(std::size(player_buildings_) - 1));
+    const Handle demolish_target = player_buildings_[index];
     if (demolish_target == 0)
     {
         return;
     }
 
-    SetCommand(demolisher->handle, CMD_DEMOLISH, demolish_target, 0);
-
-    // Just for debugging, highlight the building, and name it.
-    SetObjectiveName(demolish_target, "Demolish");
-    SetObjectiveOn(demolish_target);
+    SetCommand(demolisher->handle, CMD_DEMOLISH, 0, demolish_target);
 }
 
 void CPUManager::DispatchAntiAir(DispatchUnit* anti_air, const CPUTeam* cpu_team) const
@@ -292,6 +748,56 @@ void CPUManager::DispatchAPCPatrol(DispatchUnit* apc_patrol, const CPUTeam* cpu_
 // ==================================================
 // Spawn / Setup
 // ==================================================
+void CPUManager::Init(const int difficulty)
+{
+    // Handle general variables for the manager first.
+    switch (difficulty)
+    {
+    case GameConfig::Difficulty::EASY:
+        siege_distance_ = 200.0f;
+        break;
+    case GameConfig::Difficulty::MEDIUM:
+        siege_distance_ = 325.0f;
+        break;
+    case GameConfig::Difficulty::HARD:
+        siege_distance_ = 450.0f;
+        break;
+    default:
+        siege_distance_ = 250.0f;
+        break;
+    }
+        
+    for (int i = 0; i < GameConfig::MAX_PATHS; i++)
+    {
+        char path_name[GameConfig::MAX_NAME_LENGTH] = {};
+        if (sprintf_s(path_name, sizeof(path_name), "patrol_%d", i) < 0)
+        {
+            path_name[0] = '\0';
+            continue;
+        }
+        
+        if (Helpers::GetPathPosition(path_name) == EMPTY_VECTOR)
+        {
+            continue;
+        }
+        
+        map_patrol_paths_.emplace_back(path_name);
+        
+        if (sprintf_s(path_name, sizeof(path_name), "BasePatrol%d", i) < 0)
+        {
+            path_name[0] = '\0';
+            continue;
+        }
+        
+        if (Helpers::GetPathPosition(path_name) == EMPTY_VECTOR)
+        {
+            continue;
+        }
+        
+        base_patrol_paths_.emplace_back(path_name);
+    }
+}
+
 void CPUManager::SetCPUAIPlan(GameConfig::AIPType type, const CPUTeam* cpu_team, const char player_faction)
 {
     if (type < GameConfig::AIPType0 || type >= GameConfig::MAX_AIP_TYPE)
@@ -346,7 +852,7 @@ void CPUManager::RegisterLieutenant(CPUTeam* cpu_team, const Handle lieutenant)
 }
 
 void CPUManager::RegisterNewTeam(const int team, const char faction, const char* spawn_path, const bool is_campaign,
-                                 const char player_faction, const float siege_distance)
+                                 const char player_faction)
 {
     const int random_index = Helpers::GetRandomInt(std::size(GameConfig::CPU_NAMES) - 1);
     const char* team_name = GameConfig::CPU_NAMES[random_index];
@@ -357,7 +863,6 @@ void CPUManager::RegisterNewTeam(const int team, const char faction, const char*
     team_info.faction = faction;
     team_info.spawn_path = spawn_path;
     team_info.is_campaign = is_campaign;
-    team_info.siege_distance = siege_distance;
 
     for (const char* candidate : GameConfig::CPU_NAMES)
     {
@@ -417,8 +922,29 @@ void CPUManager::RegisterNewTeam(const int team, const char faction, const char*
 // ==================================================
 void CPUManager::Execute(const int mission_turn)
 {
+    // Update the mission turn in the CPU manager class rather than passing it back and forth between DLLs.
+    mission_turn_ = mission_turn;
+
     for (CPUTeam& team_info : teams_)
     {
+        Handle nearest_enemy = 0;
+
+        // Check to see if there are any hostiles near the main base. If so, engage siege mode.
+        if (const Handle factory = GetObjectByTeamSlot(team_info.team, DLL_TEAM_SLOT_FACTORY) != 0)
+        {
+            nearest_enemy = GetNearestEnemy(factory, true, true, siege_distance_);
+        }
+        else if (const Handle recycler = GetObjectByTeamSlot(team_info.team, DLL_TEAM_SLOT_RECYCLER) != 0)
+        {
+            nearest_enemy = GetNearestEnemy(recycler, true, true, siege_distance_);
+        }
+
+        if (nearest_enemy != 0)
+        {
+            team_info.in_siege_mode = true;
+            team_info.siege_mode_cooldown = mission_turn_ + SecondsToTurns(20.0f);
+        }
+
         if (team_info.commander_enabled)
         {
             HandleCommander(&team_info.commander, &team_info);
@@ -439,7 +965,7 @@ void CPUManager::Execute(const int mission_turn)
                 it = team_info.dispatch_units.erase(it);
                 continue;
             }
-            
+
             if (dispatch_unit.dispatch_delay > mission_turn)
             {
                 ++it;
@@ -452,13 +978,16 @@ void CPUManager::Execute(const int mission_turn)
                 HandleLieutenant(&dispatch_unit, &team_info);
                 break;
             case DispatchType::Turret:
-                DispatchTurret(&dispatch_unit, &team_info);
+                DispatchTurret(&dispatch_unit);
                 break;
             case DispatchType::AntiAir:
                 DispatchAntiAir(&dispatch_unit, &team_info);
                 break;
             case DispatchType::Patrol:
                 DispatchPatrol(&dispatch_unit, &team_info);
+                break;
+            case DispatchType::BasePatrol:
+                DispatchBasePatrol(&dispatch_unit, &team_info);
                 break;
             case DispatchType::Demolisher:
                 DispatchDemolisher(&dispatch_unit, &team_info);
@@ -484,8 +1013,7 @@ void CPUManager::Execute(const int mission_turn)
 // ==================================================
 // Delegates
 // ==================================================
-void CPUManager::AddTeamObject(const Handle team_object, const int mission_turn, const int team,
-                               const char* ai_unit_type)
+void CPUManager::AddTeamObject(const Handle team_object, const int team, const char* ai_unit_type, const char* obj_odf)
 {
     CPUTeam* cpu_team = GetCPUTeam(team);
 
@@ -523,15 +1051,27 @@ void CPUManager::AddTeamObject(const Handle team_object, const int mission_turn,
     // Create a new dispatch object and get it ready for processing.
     DispatchUnit dispatch_unit;
     dispatch_unit.handle = team_object;
-    dispatch_unit.birth_turn = mission_turn;
+    dispatch_unit.birth_turn = mission_turn_;
     dispatch_unit.team = team;
     dispatch_unit.type = GetDispatchType(ai_unit_type);
-    dispatch_unit.dispatch_delay = mission_turn + SecondsToTurns(10.0f);
+    dispatch_unit.dispatch_delay = mission_turn_ + SecondsToTurns(10.0f);
     dispatch_unit.command = CMD_NONE;
     dispatch_unit.max_health = GetMaxHealth(team_object);
     dispatch_unit.max_ammo = GetMaxAmmo(team_object);
     dispatch_unit.dispatch_point = {0, 0, 0};
     dispatch_unit.target = 0;
+
+    // Try and grab the unit's engage range from the ODF so we can populate it.
+    const float engage_range = Helpers::GetODFFloatFromChain(obj_odf, "CraftClass", "engageRange");
+
+    if (engage_range > 0.0f)
+    {
+        dispatch_unit.engage_range = engage_range;
+    }
+    else
+    {
+        dispatch_unit.engage_range = 0.0f;
+    }
 
     if (IsCommanderType(ai_unit_type))
     {
@@ -542,6 +1082,7 @@ void CPUManager::AddTeamObject(const Handle team_object, const int mission_turn,
     else
     {
         cpu_team->dispatch_units.push_back(dispatch_unit);
+        cpu_team->dispatch_by_handle[team_object] = cpu_team->dispatch_units.size() - 1; // Store index
     }
 }
 
@@ -572,9 +1113,35 @@ void CPUManager::RemoveTeamObject(const Handle team_object)
             return dispatch_unit.handle == team_object;
         }))
         {
+            // Rebuild the index map to keep it in sync with the vector.
+            cpu_team.dispatch_by_handle.clear();
+            for (size_t i = 0; i < cpu_team.dispatch_units.size(); ++i)
+            {
+                cpu_team.dispatch_by_handle[cpu_team.dispatch_units[i].handle] = i;
+            }
             return;
         }
     }
+}
+
+void CPUManager::TurretShot(const Handle turret, const int team)
+{
+    CPUTeam* cpu_team = GetCPUTeam(team);
+
+    if (cpu_team == nullptr)
+    {
+        return;
+    }
+
+    DispatchUnit* turret_dispatch_unit = GetDispatchByHandle(cpu_team, turret);
+    if (turret_dispatch_unit == nullptr)
+    {
+        return;
+    }
+
+    Defend(turret_dispatch_unit->handle, team);
+    turret_dispatch_unit->command = CMD_DEFEND;
+    turret_dispatch_unit->dispatch_delay = mission_turn_ + SecondsToTurns(15.0f);
 }
 
 // ==================================================

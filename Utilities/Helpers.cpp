@@ -1,6 +1,8 @@
 ﻿#include "Helpers.h"
 
 #include <cmath>
+#include <functional>
+
 #include "../Shared/GameConfig.h"
 #include "../Shared/SPMission.h"
 
@@ -88,6 +90,11 @@ bool Helpers::IsAudioMessageFinished(const int audio_handle, const int audio_del
     return IsAudioMessageDone(audio_handle);
 }
 
+bool Helpers::IsVectorZero(const Vector& vec)
+{
+    return vec.x == 0.0f && vec.y == 0.0f && vec.z == 0.0f;
+}
+
 int Helpers::GetRandomInt(const float max)
 {
     return static_cast<int>(std::lround(GetRandomFloat(max)));
@@ -164,11 +171,111 @@ Vector Helpers::GetPathPosition(const char* path)
 {
     if (path == nullptr)
     {
-        return {0.0f, 0.0f, 0.0f};
+        return EMPTY_VECTOR;
     }
     
     const Handle spawner = BuildObject("pspwn_1", 0 , path);
     const Vector pos = GetPosition(spawner);
     RemoveObject(spawner);
     return pos;   
+}
+
+const char* Helpers::GetODFStringFromChain(const char* odf_path, const char* section, const char* key)
+{
+    static char result[GameConfig::MAX_ODF_LENGTH] = {};
+    result[0] = '\0';
+
+    // Helper lambda for recursive search
+    static std::function<const char*(const char*, const char*, const char*, int)> SearchODFChain = 
+        [](const char* current_odf, const char* sec, const char* k, const int depth) -> const char*
+        {
+            if (!current_odf || current_odf[0] == '\0' || depth <= 0)
+            {
+                return result;
+            }
+
+            // Try to open and read the ODF
+            if (!OpenODF(current_odf))
+            {
+                return result;
+            }
+
+            // Check if this ODF has the key we're looking for
+            char value[GameConfig::MAX_ODF_LENGTH] = {};
+            GetODFString(current_odf, sec, k, GameConfig::MAX_ODF_LENGTH, value);
+
+            if (value[0] != '\0')
+            {
+                strcpy_s(result, sizeof(result), value);
+                CloseODF(current_odf);
+                return result;
+            }
+
+            // Check if there's a parent ODF via classLabel
+            char class_label[GameConfig::MAX_ODF_LENGTH] = {};
+            GetODFString(current_odf, "GameObjectClass", "classLabel", GameConfig::MAX_ODF_LENGTH, class_label);
+
+            CloseODF(current_odf);
+
+            // If we found a classLabel, recursively search the parent
+            if (class_label[0] != '\0')
+            {
+                strcat_s(class_label, ".odf");
+                return SearchODFChain(class_label, sec, k, depth - 1);
+            }
+
+            return result;
+        };
+
+    return SearchODFChain(odf_path, section, key, 10);
+}
+
+float Helpers::GetODFFloatFromChain(const char* odf_path, const char* section, const char* key)
+{
+    static char result[GameConfig::MAX_ODF_LENGTH] = {};
+    result[0] = '\0';
+
+    // Helper lambda for recursive search
+    static std::function<float(const char*, const char*, const char*, int)> SearchODFChain = 
+        [](const char* current_odf, const char* sec, const char* k, const int depth) -> float
+        {
+            if (!current_odf || current_odf[0] == '\0' || depth <= 0)
+            {
+                return 0.0f;
+            }
+
+            // Try to open and read the ODF
+            if (!OpenODF(current_odf))
+            {
+                return 0.0f;
+            }
+
+            // Check if this ODF has the key we're looking for
+            char value[GameConfig::MAX_ODF_LENGTH] = {};
+            GetODFString(current_odf, sec, k, GameConfig::MAX_ODF_LENGTH, value);
+
+            if (value[0] != '\0')
+            {
+                const float float_value = std::strtof(value, nullptr);
+                CloseODF(current_odf);
+                return float_value;
+            }
+
+            // Check if there's a parent ODF via classLabel
+            char class_label[GameConfig::MAX_ODF_LENGTH] = {};
+            GetODFString(current_odf, "GameObjectClass", "classLabel", GameConfig::MAX_ODF_LENGTH, class_label);
+
+            CloseODF(current_odf);
+
+            // If we found a classLabel, recursively search the parent
+            if (class_label[0] != '\0')
+            {
+                strcat_s(class_label, ".odf");
+                return SearchODFChain(class_label, sec, k, depth - 1);
+            }
+
+            return 0.0f;
+        };
+
+    return SearchODFChain(odf_path, section, key, 10);
 }

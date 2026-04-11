@@ -805,25 +805,42 @@ void Instant::SetupMission()
             animal_manager_.SetupBaneMapHerds(mother_odf_buffer, baby_odf_buffer);
         }
     }
+    
+    cpu_manager_.Init(difficulty_);
+    cpu_manager_.RegisterNewTeam(comp_team_, cpu_race_char_, "RecyclerEnemy", false, human_race_char_);
 
-    float siege_distance;
-    switch (difficulty_)
+    // For medium and harder difficulties, we can spawn some extra units to help the AI control the map a bit more.
+    if (difficulty_ > GameConfig::Difficulty::EASY)
     {
-    case GameConfig::Difficulty::EASY:
-        siege_distance = 200.0f;
-        break;
-    case GameConfig::Difficulty::MEDIUM:
-        siege_distance = 325.0f;
-        break;
-    case GameConfig::Difficulty::HARD:
-        siege_distance = 450.0f;
-        break;
-    default:
-        siege_distance = 250.0f;
-        break;
-    }
+        // Grab our spawn position.
+        const Vector team_spawn_pos = Helpers::GetPathPosition("RecyclerEnemy");
 
-    cpu_manager_.RegisterNewTeam(comp_team_, cpu_race_char_, "RecyclerEnemy", false, human_race_char_, siege_distance);
+        BuildStartingVehicle(comp_team_, cpu_race_char_, "*vhscav_c", "vscav_c",
+                             GetPositionNear(team_spawn_pos, 100.0f, 100.0f));
+        BuildStartingVehicle(comp_team_, cpu_race_char_, "*vturr_c", "vturr_x",
+                             GetPositionNear(team_spawn_pos, 50.0f, 100.0f));
+        BuildStartingVehicle(comp_team_, cpu_race_char_, "*vturr_c", "vturr_x",
+                             GetPositionNear(team_spawn_pos, 50.0f, 100.0f));
+
+        if (difficulty_ == GameConfig::Difficulty::MEDIUM)
+        {
+            BuildStartingVehicle(comp_team_, cpu_race_char_, "*vscout_bp", "*vscout_c",
+                                 GetPositionNear(team_spawn_pos, 100.0f, 150.0f));
+            BuildStartingVehicle(comp_team_, cpu_race_char_, "*vscout_bp", "*vscout_c",
+                                 GetPositionNear(team_spawn_pos, 100.0f, 150.0f));
+        }
+        else
+        {
+            BuildStartingVehicle(comp_team_, cpu_race_char_, "*vtank_bp", "*vtank_c",
+                                 GetPositionNear(team_spawn_pos, 100.0f, 150.0f));
+            BuildStartingVehicle(comp_team_, cpu_race_char_, "*vtank_bp", "*vtank_c",
+                                 GetPositionNear(team_spawn_pos, 100.0f, 150.0f));
+            BuildStartingVehicle(comp_team_, cpu_race_char_, "*vturr_c", "vturr_x",
+                                 GetPositionNear(team_spawn_pos, 50.0f, 100.0f));
+            BuildStartingVehicle(comp_team_, cpu_race_char_, "*vscav_c", "*vscav_c",
+                                 GetPositionNear(team_spawn_pos, 50.0f, 100.0f));
+        }
+    }
 
     intro_ship_1_ = GetHandle("intro_drop_1");
     intro_ship_2_ = GetHandle("intro_drop_2");
@@ -909,13 +926,13 @@ void Instant::Execute()
 void Instant::PreOrdnanceHit(const Handle shooter_handle, const Handle victim_handle, int ordnance_team,
                              const char* ordnance_odf)
 {
-    char obj_class[GameConfig::MAX_ODF_LENGTH] = {};
-    if (!GetObjInfo(victim_handle, Get_EntityType, obj_class))
+    char obj_et[GameConfig::MAX_ODF_LENGTH] = {};
+    if (!GetObjInfo(victim_handle, Get_EntityType, obj_et))
     {
         return;
     }
 
-    if (std::strcmp(obj_class, "CLASS_ID_ANIMAL") == 0)
+    if (std::strcmp(obj_et, "CLASS_ID_ANIMAL") == 0)
     {
         const char* victim_label = GetLabel(victim_handle);
         int victim_index = 0;
@@ -925,6 +942,22 @@ void Instant::PreOrdnanceHit(const Handle shooter_handle, const Handle victim_ha
         }
 
         animal_manager_.AnimalShot(victim_index, mission_time_, shooter_handle);
+        return;
+    }
+    
+    char obj_class[GameConfig::MAX_ODF_LENGTH] = {};
+    if (!GetObjInfo(victim_handle, Get_GOClass, obj_class))
+    {
+        return;
+    }
+    
+    const int victim_team = GetTeamNum(victim_handle);
+    if (victim_team != ordnance_team && victim_team == comp_team_)
+    {
+        if (std::strcmp(obj_class, "CLASS_TURRETTANK") == 0)
+        {
+            cpu_manager_.TurretShot(victim_handle, victim_team);
+        }
     }
 }
 
@@ -956,11 +989,6 @@ void Instant::AddObject(const Handle new_handle)
     if (team == strat_team_)
     {
         SetSkill(new_handle, 3);
-
-        if (IsBuilding(new_handle))
-        {
-            cpu_manager_.AddPlayerBuilding(new_handle);
-        }
     }
     else if (team == comp_team_)
     {
@@ -972,38 +1000,44 @@ void Instant::AddObject(const Handle new_handle)
         }
     }
 
-    char obj_odf[GameConfig::MAX_ODF_LENGTH] = {};
-    if (!GetObjInfo(new_handle, Get_ODF, obj_odf))
+    if (team == strat_team_ || team == comp_team_)
     {
-        return;
-    }
+        char obj_odf[GameConfig::MAX_ODF_LENGTH] = {};
+        if (!GetObjInfo(new_handle, Get_ODF, obj_odf))
+        {
+            return;
+        }
 
-    const bool is_open = OpenODF(obj_odf);
-    if (!is_open)
-    {
-        return;
-    }
+        const char* ai_unit_type = Helpers::GetODFStringFromChain(obj_odf, "GameObjectClass", "AIUnitType");
 
-    char ai_unit_type[GameConfig::MAX_ODF_LENGTH] = {};
-    GetODFString(obj_odf, "GameObjectClass", "AIUnitType", GameConfig::MAX_ODF_LENGTH, ai_unit_type);
+        if (ai_unit_type == nullptr || ai_unit_type[0] == '\0')
+        {
+            return;
+        }
 
-    if (strcmp(ai_unit_type, GameConfig::AIUnitType::LANDING_PAD) == 0)
-    {
-        carrier_manager_.RegisterLandingPad(new_handle, team);
-    }
-    else if (strcmp(ai_unit_type, GameConfig::AIUnitType::DROPSHIP_REQUEST) == 0)
-    {
-        carrier_manager_.RegisterDropshipRequest(new_handle, team,
-                                                 mission_time_ + SecondsToTurns(
-                                                     GameConfig::GetDropshipCooldownRequestTime(difficulty_)));
-    }
+        if (strcmp(ai_unit_type, GameConfig::AIUnitType::LANDING_PAD) == 0)
+        {
+            carrier_manager_.RegisterLandingPad(new_handle, team);
+        }
+        else if (strcmp(ai_unit_type, GameConfig::AIUnitType::DROPSHIP_REQUEST) == 0)
+        {
+            carrier_manager_.RegisterDropshipRequest(new_handle, team,
+                                                     mission_time_ + SecondsToTurns(
+                                                         GameConfig::GetDropshipCooldownRequestTime(difficulty_)));
+        }
 
-    if (team == comp_team_ && strcmp(ai_unit_type, GameConfig::AIUnitType::CARRIER) != 0)
-    {
-        cpu_manager_.AddTeamObject(new_handle, mission_time_, team, ai_unit_type);
+        if (strcmp(ai_unit_type, GameConfig::AIUnitType::CARRIER) != 0)
+        {
+            if (team == comp_team_)
+            {
+                cpu_manager_.AddTeamObject(new_handle, team, ai_unit_type, obj_odf);
+            }
+            else if (team == strat_team_ && IsBuilding(new_handle))
+            {
+                cpu_manager_.AddPlayerBuilding(new_handle);
+            }   
+        }
     }
-
-    CloseODF(obj_odf);
 }
 
 void Instant::DeleteObject(const Handle dead_handle)
@@ -1028,8 +1062,9 @@ void Instant::DeleteObject(const Handle dead_handle)
     if (team == strat_team_ && IsBuilding(dead_handle))
     {
         cpu_manager_.RemovePlayerBuilding(dead_handle);
-        return;
     }
+
+    cpu_manager_.RemoveTeamObject(dead_handle);
 }
 
 // ==================================================

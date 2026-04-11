@@ -16,10 +16,14 @@ public:
     static bool IsAudioMessageFinished(int audio_handle, int audio_delay_time, int mission_time, bool is_coop);
     static bool Teleport(Handle handle, const Vector& destination, float offset);
     static bool IsRecycler(Handle handle);
+    static bool IsVectorZero(const Vector& vec);
     
     static int GetRandomInt(float max);
     
     static Handle TeleportIn(const char* odf, int team, const Vector& position);
     
     static Vector GetPathPosition(const char* path);
+    
+    static const char* GetODFStringFromChain(const char* odf_path, const char* section, const char* key);
+    static float GetODFFloatFromChain(const char* odf_path, const char* section, const char* key);
 };

@@ -5,6 +5,8 @@
 #include <cstring>
 #include <string>
 
+#define EMPTY_VECTOR Vector(0.0f, 0.0f, 0.0f)
+
 namespace GameConfig
 {
     namespace AIUnitType
@@ -24,7 +26,7 @@ namespace GameConfig
         constexpr auto PATROL = "Patrol";
         constexpr auto TURRET = "Turret";
     }
-    
+
     struct KeyValuePair
     {
         const char* key;
@@ -33,6 +35,7 @@ namespace GameConfig
 
     enum : std::uint16_t
     {
+        MAX_PATHS = 8,
         MAX_ODF_LENGTH = 64,
         MAX_NAME_LENGTH = 256,
         MAX_CONSOLE_MSG_LENGTH = 512,
@@ -71,17 +74,17 @@ namespace GameConfig
         Leave,
         Remove
     };
-    
+
     enum AIPType : std::uint8_t
     {
-        AIPType0, 
-        AIPType1, 
-        AIPType2, 
-        AIPType3, 
-        AIPTypeA, 
-        AIPTypeL, 
-        AIPTypeS, 
-        MAX_AIP_TYPE, 
+        AIPType0,
+        AIPType1,
+        AIPType2,
+        AIPType3,
+        AIPTypeA,
+        AIPTypeL,
+        AIPTypeS,
+        MAX_AIP_TYPE,
     };
 
     constexpr int MAX_PLAYERS = 4;
@@ -127,7 +130,7 @@ namespace GameConfig
         'l',
         's'
     };
-    
+
     constexpr const char* BANE_MAPS[6] =
     {
         "dunesi.trn",
@@ -185,7 +188,7 @@ namespace GameConfig
         {"LightDropship", "fvsent_x"},
         {"TurretDropship", "fvturr_x"}
     };
-        
+
     inline const char* GetPortalUnit(const std::string& name)
     {
         for (const auto& entry : PortalUnits)
