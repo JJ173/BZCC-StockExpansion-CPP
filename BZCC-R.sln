@@ -4,6 +4,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Instant", "Instant\Instant.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ISDF17", "ISDF17\ISDF17.vcxproj", "{586DE849-BC70-4012-B197-BB3206EB365D}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Scion03", "Scion03\Scion03.vcxproj", "{5454CDD8-A0B2-4FDF-879E-BEB62037AF27}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -18,5 +20,9 @@ Global
 		{586DE849-BC70-4012-B197-BB3206EB365D}.Debug|Win32.Build.0 = Debug|Win32
 		{586DE849-BC70-4012-B197-BB3206EB365D}.Release|Win32.ActiveCfg = Release|Win32
 		{586DE849-BC70-4012-B197-BB3206EB365D}.Release|Win32.Build.0 = Release|Win32
+		{5454CDD8-A0B2-4FDF-879E-BEB62037AF27}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5454CDD8-A0B2-4FDF-879E-BEB62037AF27}.Debug|Win32.Build.0 = Debug|Win32
+		{5454CDD8-A0B2-4FDF-879E-BEB62037AF27}.Release|Win32.ActiveCfg = Release|Win32
+		{5454CDD8-A0B2-4FDF-879E-BEB62037AF27}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 EndGlobal

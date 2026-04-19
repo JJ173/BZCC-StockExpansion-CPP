@@ -26,6 +26,26 @@ namespace
 // ==================================================
 // Utilities
 // ==================================================
+Handle CPUManager::GetProducer(const int team) const
+{
+    if (team < 0 || teams_.empty())
+    {
+        return 0;
+    }
+
+    if (const Handle producer = GetObjectByTeamSlot(team, DLL_TEAM_SLOT_RECYCLER) != 0)
+    {
+        return producer;
+    }
+
+    if (const Handle producer = GetObjectByTeamSlot(team, DLL_TEAM_SLOT_FACTORY) != 0)
+    {
+        return producer;
+    }
+
+    return 0;
+}
+
 CPUManager::CPUTeam* CPUManager::GetCPUTeam(const int team)
 {
     if (team < 0 || teams_.empty())
@@ -501,12 +521,12 @@ void CPUManager::DispatchPatrol(DispatchUnit* patrol, CPUTeam* cpu_team) const
     {
         return;
     }
-    
+
     if (!map_patrol_paths_.empty())
     {
         // Use the index to get the next path in the queue
         const std::string& patrol_path = map_patrol_paths_[cpu_team->next_patrol_path_index];
-        
+
         Patrol(patrol->handle, patrol_path.c_str());
         patrol->command = CMD_PATROL;
 
@@ -692,19 +712,36 @@ void CPUManager::DispatchBasePatrol(DispatchUnit* base_patrol, CPUTeam* cpu_team
     {
         return;
     }
-    
+
     if (!base_patrol_paths_.empty())
     {
-        // Use the index to get the next path in the queue
         const std::string& patrol_path = base_patrol_paths_[cpu_team->next_base_patrol_path_index];
-        
+
         Patrol(base_patrol->handle, patrol_path.c_str());
         base_patrol->command = CMD_PATROL;
 
-        // Increment and wrap around the index
-        cpu_team->next_base_patrol_path_index = (cpu_team->next_base_patrol_path_index + 1) % map_patrol_paths_.size();
+        cpu_team->next_base_patrol_path_index = (cpu_team->next_base_patrol_path_index + 1) % std::size(
+            map_patrol_paths_);
         return;
     }
+
+    // Fallback: Find a random building within the base and patrol around it.
+    // Add a dispatch timer to it too, so it's considered a "slow" patrol.
+    // Start patrolling between different points around the base.
+    if (cpu_team->buildings.empty())
+    {
+        return;
+    }
+
+    // Pick the next target and grab a distance that's near it.
+    const Handle random_building = cpu_team->buildings[Helpers::GetRandomInt(
+        static_cast<float>(std::size(cpu_team->buildings)) - 1)];
+    const Vector dispatch_point = GetPositionNear(GetPosition(random_building), 50.0f, 75.0f);
+
+    Goto(base_patrol->handle, dispatch_point, 0);
+    base_patrol->dispatch_point = dispatch_point;
+    base_patrol->command = CMD_GO;
+    base_patrol->dispatch_delay = mission_turn_ + SecondsToTurns(45.0f);
 }
 
 void CPUManager::DispatchDemolisher(const DispatchUnit* demolisher, const CPUTeam* cpu_team) const
@@ -729,8 +766,37 @@ void CPUManager::DispatchDemolisher(const DispatchUnit* demolisher, const CPUTea
     SetCommand(demolisher->handle, CMD_DEMOLISH, 0, demolish_target);
 }
 
-void CPUManager::DispatchAntiAir(DispatchUnit* anti_air, const CPUTeam* cpu_team) const
+void CPUManager::DispatchAntiAir(DispatchUnit* anti_air, CPUTeam* cpu_team) const
 {
+    if (anti_air == nullptr || anti_air->handle == 0 || !IsIdle(anti_air->handle))
+    {
+        return;
+    }
+
+    if (!anti_air_paths_.empty())
+    {
+        const std::string& anti_air_path = anti_air_paths_[cpu_team->next_anti_air_path_index];
+
+        Goto(anti_air->handle, anti_air_path.c_str());
+        anti_air->command = CMD_GO;
+
+        cpu_team->next_anti_air_path_index = (cpu_team->next_anti_air_path_index + 1) % std::size(
+            anti_air_paths_);
+        return;
+    }
+
+    // Fallback: If there are no anti-air paths, assign the anti-air near the Recycler and have it wait for targets.
+    const Handle producer = GetProducer(cpu_team->team);
+    if (producer == 0)
+    {
+        return;
+    }
+
+    const Vector anti_air_dispatch_point = GetPositionNear(GetPosition(producer), anti_air_distance_ - 50.0f,
+                                                           anti_air_distance_);
+    Goto(anti_air->handle, anti_air_dispatch_point, 0);
+    anti_air->dispatch_point = anti_air_dispatch_point;
+    anti_air->command = CMD_GO;
 }
 
 void CPUManager::DispatchSupport(DispatchUnit* support, const CPUTeam* cpu_team) const
@@ -754,47 +820,46 @@ void CPUManager::Init(const int difficulty)
     switch (difficulty)
     {
     case GameConfig::Difficulty::EASY:
+        anti_air_distance_ = 150.0f;
         siege_distance_ = 200.0f;
         break;
     case GameConfig::Difficulty::MEDIUM:
+    default:
+        anti_air_distance_ = 250.0f;
         siege_distance_ = 325.0f;
         break;
     case GameConfig::Difficulty::HARD:
+        anti_air_distance_ = 350.0f;
         siege_distance_ = 450.0f;
         break;
-    default:
-        siege_distance_ = 250.0f;
-        break;
     }
-        
+
     for (int i = 0; i < GameConfig::MAX_PATHS; i++)
     {
         char path_name[GameConfig::MAX_NAME_LENGTH] = {};
-        if (sprintf_s(path_name, sizeof(path_name), "patrol_%d", i) < 0)
+        if (sprintf_s(path_name, sizeof(path_name), "patrol_%d", i) >= 0)
         {
-            path_name[0] = '\0';
-            continue;
+            if (Helpers::GetPathPosition(path_name) != EMPTY_VECTOR)
+            {
+                map_patrol_paths_.emplace_back(path_name);
+            }
         }
-        
-        if (Helpers::GetPathPosition(path_name) == EMPTY_VECTOR)
+
+        if (sprintf_s(path_name, sizeof(path_name), "BasePatrol%d", i) >= 0)
         {
-            continue;
+            if (Helpers::GetPathPosition(path_name) != EMPTY_VECTOR)
+            {
+                base_patrol_paths_.emplace_back(path_name);
+            }
         }
-        
-        map_patrol_paths_.emplace_back(path_name);
-        
-        if (sprintf_s(path_name, sizeof(path_name), "BasePatrol%d", i) < 0)
+
+        if (sprintf_s(path_name, sizeof(path_name), "anti-air_%d", i) >= 0)
         {
-            path_name[0] = '\0';
-            continue;
+            if (Helpers::GetPathPosition(path_name) != EMPTY_VECTOR)
+            {
+                anti_air_paths_.emplace_back(path_name);
+            }
         }
-        
-        if (Helpers::GetPathPosition(path_name) == EMPTY_VECTOR)
-        {
-            continue;
-        }
-        
-        base_patrol_paths_.emplace_back(path_name);
     }
 }
 

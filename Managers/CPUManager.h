@@ -78,10 +78,12 @@ class CPUManager
         
         size_t next_patrol_path_index = 0; // Track the next path for "Patrol" units
         size_t next_base_patrol_path_index = 0; // Track the next path for "BasePatrol" units
+        size_t next_anti_air_path_index = 0; // Track the next path for "AntiAir" units
     };
     
     int mission_turn_ = 0;
     float siege_distance_;
+    float anti_air_distance_;
     
     std::vector<CPUTeam> teams_;
     std::vector<Handle> map_pools_;
@@ -93,6 +95,7 @@ class CPUManager
     // TODO: Change this to a team specific path selector if we ever plan to support more than one AIP.
     std::vector<std::string> map_patrol_paths_;
     std::vector<std::string> base_patrol_paths_;
+    std::vector<std::string> anti_air_paths_;
     
     static DispatchUnit* GetDispatchByHandle(CPUTeam* cpu_team, Handle handle);
     static DispatchType GetDispatchType(const char* ai_unit_type);
@@ -100,7 +103,9 @@ class CPUManager
     static bool IsCommanderType(const char* ai_unit_type);
     static bool IsLieutenantType(const char* ai_unit_type);
     
+    Handle GetProducer(int team) const;
     Handle FindNearestServicePod(Handle handle) const;
+    
     CPUTeam* GetCPUTeam(int team);
     
     static void SetCPUAIPlan(GameConfig::AIPType type, const CPUTeam* cpu_team, char player_faction);
@@ -112,7 +117,7 @@ class CPUManager
     void DispatchPatrol(DispatchUnit* patrol, CPUTeam* cpu_team) const;
     void DispatchBasePatrol(DispatchUnit* base_patrol, CPUTeam* cpu_team) const;
     void DispatchDemolisher(const DispatchUnit* demolisher, const CPUTeam* cpu_team) const;
-    void DispatchAntiAir(DispatchUnit* anti_air, const CPUTeam* cpu_team) const;
+    void DispatchAntiAir(DispatchUnit* anti_air, CPUTeam* cpu_team) const;
     void DispatchSupport(DispatchUnit* support, const CPUTeam* cpu_team) const;
     void DispatchDefender(DispatchUnit* defender, const CPUTeam* cpu_team) const;
     void DispatchAPCPatrol(DispatchUnit* apc_patrol, const CPUTeam* cpu_team) const;

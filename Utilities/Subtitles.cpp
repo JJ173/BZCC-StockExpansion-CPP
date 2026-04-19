@@ -19,7 +19,7 @@ const char* Subtitles::GetSubtitlePanelName(const GameConfig::SubtitlePanelSize 
     return "SubtitlesPanel";
 }
 
-int Subtitles::AudioWithSubtitles(const char* clip_name, GameConfig::SubtitlePanelSize panel_size)
+int Subtitles::AudioWithSubtitles(const char* clip_name, const GameConfig::SubtitlePanelSize panel_size)
 {
     audio_clip_ = AudioMessage(clip_name);
 

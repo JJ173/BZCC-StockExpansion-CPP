@@ -315,6 +315,17 @@ static void DLLAPI PostRun(void)
 {
 	Mission->PostRun();
 	delete Mission;
+	Mission = NULL;
+
+	for (int i = 0; i < 3; i++)
+	{
+		if (Missions[i] != NULL)
+		{
+			// The original Mission pointer might have been in this array.
+			// Let's make sure we don't double delete.
+			Missions[i] = NULL;
+		}
+	}
 }
 
 static bool DLLAPI AddPlayer(DPID id, int Team, bool ShouldCreateThem)
@@ -344,6 +355,8 @@ static EjectKillRetCodes DLLAPI ObjectSniped(int DeadObjectHandle,int KillersHan
 
 static const char * DLLAPI GetNextRandomVehicleODF(int Team)
 {
+	if (Mission == NULL)
+		return "player";
 	return Mission->GetNextRandomVehicleODF(Team);
 }
 
