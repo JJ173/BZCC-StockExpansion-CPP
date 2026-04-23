@@ -21,6 +21,7 @@
     <ClInclude Include="..\Shared\TRNAllies.h" />
     <ClInclude Include="..\Utilities\Helpers.h" />
     <ClInclude Include="..\Utilities\Subtitles.h" />
+    <ClInclude Include="Scion03\Scion03.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Cooperative\Cooperative.cpp" />

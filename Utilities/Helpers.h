@@ -17,13 +17,20 @@ struct UnitTracker
     {
         handle = h;
         active = true;
+        command = CMD_NONE;
     }
     
     void Reset()
     {
         handle = 0;
         active = false;
-        command = 0;
+        command = CMD_NONE;
+    }
+    
+    void InitAttack(const Handle him)
+    {
+        Attack(handle, him, 0);
+        command = CMD_ATTACK;
     }
     
     void InitFollow(const Handle him)

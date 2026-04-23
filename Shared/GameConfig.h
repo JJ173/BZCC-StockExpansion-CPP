@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <inttypes.h>
 #include <string>
 
 #define EMPTY_VECTOR Vector(0.0f, 0.0f, 0.0f)
@@ -27,6 +28,38 @@ namespace GameConfig
         constexpr auto TURRET = "Turret";
     }
 
+    namespace ODFs
+    {
+        static constexpr auto RecyclerISDF = "ivrecy_x";
+        static constexpr auto RecyclerScion = "fvrecy_x";
+        
+        static constexpr auto ScoutISDF = "ivscout_x";
+        static constexpr auto ScoutScion = "fvscout_x";
+        
+        static constexpr auto TankISDF = "ivtank_x";
+        static constexpr auto TankScion = "fvtank_x";
+        
+        static constexpr auto MissileISDF = "ivmisl_x";
+        static constexpr auto MissileScion = "fvarch_x";
+        
+        static constexpr auto MortarBikeISDF = "ivmbike_x";
+        
+        static constexpr auto ServiceTruckISDF = "ivserv_x";
+        static constexpr auto ServiceTruckScion = "fvserv_x";
+        
+        static constexpr auto RocketTankISDF = "ivrckt_x";
+
+        static constexpr auto AssaultTankISDF = "ivatank_x";
+        static constexpr auto AssualTTankScion = "fvatank_x";
+        
+        static constexpr auto WalkerISDF = "ivwalk_x";
+        static constexpr auto WalkerScion = "fvwalk_x";
+                
+        static constexpr auto IceRhino = "bcrhino";
+        
+        static constexpr auto SPStabber = "gspstab_c";
+    }
+    
     struct KeyValuePair
     {
         const char* key;
